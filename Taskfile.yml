@@ -1,0 +1,66 @@
+version: '3'
+
+tasks:
+  default:
+    desc: "Default task - setup and run security demo"
+    cmds:
+      - task --list
+
+  setup:
+    desc: "Set up the Python environment"
+    cmds:
+      - pyenv install -s 3.12.9
+      - pyenv local 3.12.9
+      - poetry install
+      - poetry config virtualenvs.in-project true
+
+  generate-keys:
+    desc: "Generate RSA key pair for OAuth JWT signing"
+    cmds:
+      - poetry run python src/generate_keys.py
+
+  run-server:
+    desc: "Run the secure MCP server"
+    cmds:
+      - poetry run python src/main.py
+    env:
+      LLM_PROVIDER: "{{.LLM_PROVIDER | default \"ollama\"}}"
+
+  run-oauth:
+    desc: "Run the OAuth authorization server"
+    cmds:
+      - poetry run python src/oauth_server.py
+
+  run-openai-client:
+    desc: "Run the secure OpenAI client demo"
+    cmds:
+      - poetry run python src/secure_clients/openai_client.py
+
+  test:
+    desc: "Run all tests"
+    cmds:
+      - poetry run pytest tests/ -v
+    env:
+      LLM_PROVIDER: "{{.LLM_PROVIDER | default \"ollama\"}}"
+
+  format:
+    desc: "Format code"
+    cmds:
+      - poetry run black src/ tests/
+      - poetry run ruff check --fix src/ tests/
+
+  clean:
+    desc: "Clean up generated files"
+    cmds:
+      - find . -type d -name "__pycache__" -exec rm -rf {} +
+      - find . -type f -name "*.pyc" -delete
+      - rm -rf .pytest_cache
+      - rm -rf .ruff_cache
+      - rm -rf security_logs/
+
+  generate-certs:
+    desc: "Generate self-signed certificates for development"
+    cmds:
+      - mkdir -p certificates
+      - openssl req -x509 -newkey rsa:4096 -keyout certificates/server.key -out certificates/server.crt -days 365 -nodes -subj "/CN=localhost"
+      - chmod 600 certificates/server.key

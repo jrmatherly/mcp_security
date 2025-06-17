@@ -1,0 +1,56 @@
+[tool.poetry]
+name = "mcp-security"
+version = "0.1.0"
+description = "MCP Security: From Vulnerable to Fortified - Building Secure HTTP-based AI Integrations"
+authors = ["MCP Security Guide"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.scripts]
+mcp-secure-server = "src.main:main"
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.13"
+fastmcp = "^2.8.0"
+pydantic = "^2.11.5"
+python-dotenv = "^1.0.0"
+openai = {extras = ["agents"], version = "^1.86.0"}
+anthropic = "^0.54.0"
+langchain = "^0.3.0"
+langchain-openai = "^0.3.22"
+langchain-mcp-adapters = "^0.1.7"
+dspy-ai = "^2.6.27"
+litellm = "^1.72.4"
+asyncio = "^3.4.3"
+fastapi = "^0.115.13"
+uvicorn = {extras = ["standard"], version = "^0.24.0"}
+redis = "^5.0.0"
+pyjwt = {extras = ["crypto"], version = "^2.8.0"}
+cryptography = "^41.0.0"
+bleach = "^6.1.0"
+httpx = "^0.28.1"
+python-multipart = "^0.0.9"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-asyncio = "^0.21.0"
+black = "^23.0.0"
+ruff = "^0.1.0"
+isort = "^5.12.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ['py312']
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "I", "N", "W"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
