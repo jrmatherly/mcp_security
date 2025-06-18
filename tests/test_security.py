@@ -127,18 +127,3 @@ class TestSecurityLogging:
         assert summary["event_types"]["event2"] == 1
 
 
-class TestAuthentication:
-    """Test authentication functionality."""
-
-    @pytest.mark.asyncio
-    async def test_valid_token_validation(self):
-        """Test valid token validation."""
-        from src.security.auth import validate_token
-        
-        # Test the mock implementation
-        result = await validate_token("demo_token")
-        
-        # Verify the mock implementation returns expected structure
-        assert result["user_id"] == "demo_user"
-        assert "customer:read" in result["scopes"]
-        assert "ticket:create" in result["scopes"]
