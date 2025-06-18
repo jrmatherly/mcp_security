@@ -51,6 +51,11 @@ tasks:
     cmds:
       - poetry run python src/secure_clients/dspy_client.py
 
+  run-litellm-client:
+    desc: "Run the secure LiteLLM MCP client demo"
+    cmds:
+      - poetry run python src/secure_clients/litellm_client.py
+
   test:
     desc: "Run all tests"
     cmds:
