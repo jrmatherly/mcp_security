@@ -501,6 +501,11 @@ async def revoke_token(
     
     return {"revoked": True}
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Docker."""
+    return {"status": "healthy", "service": "oauth-server"}
+
 @app.get("/debug/tokens")
 async def debug_tokens():
     """Debug endpoint to view active tokens (development only)."""
@@ -537,8 +542,8 @@ def main():
     
     uvicorn.run(
         "oauth_server:app",
-        host="127.0.0.1",
-        port=8080,
+        host=Config.OAUTH_SERVER_HOST,
+        port=Config.OAUTH_SERVER_PORT,
         log_level="info"
     )
 

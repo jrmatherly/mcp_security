@@ -64,3 +64,56 @@ tasks:
       - mkdir -p certificates
       - openssl req -x509 -newkey rsa:4096 -keyout certificates/server.key -out certificates/server.crt -days 365 -nodes -subj "/CN=localhost"
       - chmod 600 certificates/server.key
+
+  generate-trusted-certs:
+    desc: "Generate locally-trusted certificates using mkcert"
+    cmds:
+      - ./scripts/generate-local-certs.sh
+
+  trust-certs:
+    desc: "Add current certificates to system trust store"
+    cmds:
+      - ./scripts/trust-self-signed.sh
+
+  # Docker tasks
+  docker-build:
+    desc: "Build Docker images for all services"
+    cmds:
+      - docker-compose build
+
+  docker-up:
+    desc: "Start all services with Docker Compose (with TLS)"
+    deps: [generate-keys, generate-certs]
+    cmds:
+      - docker-compose up -d
+
+  docker-down:
+    desc: "Stop all Docker services"
+    cmds:
+      - docker-compose down
+
+  docker-logs:
+    desc: "View logs from all Docker services"
+    cmds:
+      - docker-compose logs -f
+
+  docker-restart:
+    desc: "Restart all Docker services"
+    cmds:
+      - docker-compose restart
+
+  docker-clean:
+    desc: "Clean up Docker containers, images, and volumes"
+    cmds:
+      - docker-compose down -v
+      - docker system prune -f
+
+  docker-shell-oauth:
+    desc: "Open shell in OAuth container"
+    cmds:
+      - docker-compose exec oauth /bin/bash
+
+  docker-shell-mcp:
+    desc: "Open shell in MCP container"
+    cmds:
+      - docker-compose exec mcp /bin/bash

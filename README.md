@@ -13,16 +13,38 @@ Learn how to secure your MCP integrations with enterprise-grade security:
 - Monitor security events and handle incidents
 - Connect clients securely to protected MCP servers
 
+## Quick Start
+
+**For Development (no TLS)**:
+```bash
+task setup && task generate-keys
+task run-oauth    # Terminal 1
+task run-server   # Terminal 2
+```
+
+**For Production (with TLS)**:
+```bash
+task setup && task generate-keys && task generate-certs
+task docker-up
+```
+
 ## Prerequisites
 
+### Development Setup
 - Python 3.12.9 (managed via pyenv)
 - Poetry for dependency management
 - Go Task for build automation
 - API key for OpenAI or Anthropic (Claude) OR Ollama installed locally
 - Redis server for rate limiting (optional)
+
+### Docker/Production Setup
+- Docker and Docker Compose
 - Valid SSL certificates for production deployment
+- API key for OpenAI or Anthropic (Claude) OR Ollama installed locally
 
 ## Setup
+
+### Development Setup (Local Python)
 
 1. Clone this repository
 2. Copy `.env.example` to `.env` and configure your environment:
@@ -36,10 +58,34 @@ Learn how to secure your MCP integrations with enterprise-grade security:
     - Add your API keys
     - Configure Redis URL if using distributed rate limiting
     - Set TLS certificate paths
-4. Run the setup task:
+4. Run the setup tasks:
     
     ```bash
-    task setup
+    task setup           # Install Python dependencies
+    task generate-keys   # Generate RSA keys for JWT
+    task generate-certs  # Generate self-signed certificates
+    ```
+
+### Docker Setup (Production)
+
+1. Clone this repository
+2. Copy `.env.example.tls` to `.env` and configure for Docker:
+    
+    ```bash
+    cp .env.example.tls .env
+    ```
+    
+3. Edit `.env` to configure your production environment:
+    - Set your API keys (OPENAI_API_KEY, ANTHROPIC_API_KEY)
+    - Configure JWT secrets and OAuth credentials
+    - Set Redis password and other production settings
+4. Run the Docker setup:
+    
+    ```bash
+    task generate-keys   # Generate RSA keys for JWT
+    task generate-certs  # Generate self-signed certificates
+    task docker-build    # Build Docker images
+    task docker-up       # Start all services with TLS
     ```
 
 ## Supported LLM Providers
@@ -105,39 +151,164 @@ Learn how to secure your MCP integrations with enterprise-grade security:
 5. **Security Monitoring**: Real-time threat detection and incident response
 6. **Secure Client Integration**: Protected connections from all major AI platforms
 
-## Running Examples
+## Running the Application
 
-Run the secure MCP server:
+### Quick Comparison
 
+| Feature | Development Mode | Docker Mode (Production) |
+|---------|------------------|-------------------------|
+| OAuth URL | http://localhost:8080 | https://localhost:8443 |
+| MCP URL | http://localhost:8000 | https://localhost:8001 |
+| TLS/HTTPS | ❌ No | ✅ Yes (via nginx) |
+| Redis | Local install | Docker container |
+| Complexity | Simple | Production-ready |
+| Use Case | Development/Testing | Production/Demo |
+
+### Option 1: Development Mode (Without Docker/nginx)
+
+This mode runs services directly with Python, using HTTP without TLS.
+
+#### Environment Variables (.env)
 ```bash
-task run-server
+# Key differences for development mode:
+OAUTH_TOKEN_URL=http://localhost:8080/token
+MCP_SERVER_URL=http://localhost:8000/mcp
+OAUTH_SERVER_HOST=localhost
+OAUTH_ISSUER_URL=http://localhost:8080
+MCP_SERVER_HOST=localhost
+REDIS_URL=redis://localhost:6379
 ```
 
-Test individual security components:
-
+#### Running with Tasks
 ```bash
-task test-auth           # Test OAuth authentication
-task test-validation     # Test input validation
-task test-rate-limit     # Test rate limiting
-task test-clients        # Test secure client connections
+# Terminal 1: Start OAuth server
+task run-oauth           # Runs on http://localhost:8080
+
+# Terminal 2: Start MCP server
+task run-server          # Runs on stdio (FastMCP 2.8+)
+
+# Terminal 3: Run OpenAI client
+task run-openai-client   # Connects to local services
 ```
 
-Run security demonstrations:
-
+#### Running without Tasks
 ```bash
-task demo-security       # Full security demonstration
-task demo-attacks        # Demonstrate attack prevention
+# Terminal 1: OAuth server
+poetry run python src/oauth_server.py
+
+# Terminal 2: MCP server
+poetry run python src/main.py
+
+# Terminal 3: OpenAI client
+poetry run python src/secure_clients/openai_client.py
 ```
+
+#### Testing
+```bash
+# Test OAuth server
+curl http://localhost:8080/
+
+# Test with OpenAI client
+task run-openai-client
+
+# Run all tests
+task test
+```
+
+### Option 2: Production Mode (With Docker/nginx for TLS)
+
+This mode runs all services in Docker containers with nginx providing TLS termination.
+
+#### Environment Variables (.env)
+```bash
+# Key differences for Docker mode:
+OAUTH_TOKEN_URL=https://localhost:8443/token
+MCP_SERVER_URL=https://localhost:8001/mcp
+OAUTH_SERVER_HOST=0.0.0.0
+OAUTH_ISSUER_URL=https://localhost:8443
+MCP_SERVER_HOST=0.0.0.0
+REDIS_URL=redis://redis:6379
+TLS_CA_CERT_PATH=  # Empty to skip cert verification for self-signed
+```
+
+#### Running with Tasks
+```bash
+# Start all services (nginx, OAuth, MCP, Redis)
+task docker-up
+
+# View logs
+task docker-logs
+
+# Run OpenAI client against Docker services
+task run-openai-client
+
+# Stop all services
+task docker-down
+```
+
+#### Running without Tasks
+```bash
+# Build and start services
+docker-compose build
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Run OpenAI client with Docker URLs
+OAUTH_TOKEN_URL=https://localhost:8443/token \
+MCP_SERVER_URL=https://localhost:8001/mcp \
+TLS_CA_CERT_PATH= \
+poetry run python src/secure_clients/openai_client.py
+
+# Stop services
+docker-compose down
+```
+
+#### Testing
+```bash
+# Test OAuth server (via nginx HTTPS)
+curl -k https://localhost:8443/
+
+# Test direct container access (from host)
+curl http://localhost:8080/  # Direct to OAuth container
+
+# Debug containers
+task docker-shell-oauth
+task docker-shell-mcp
+```
+
+#### Service URLs
+- **OAuth Server**: https://localhost:8443 (TLS via nginx)
+- **MCP Server**: https://localhost:8001 (TLS via nginx)
+- **Direct OAuth**: http://localhost:8080 (container port, not for external use)
+- **Direct MCP**: http://localhost:8000 (container port, not for external use)
 
 ## Available Tasks
 
+### Core Tasks
 - `task setup` - Set up Python environment and install dependencies
-- `task run-server` - Run the secure MCP server
-- `task run-oauth` - Run the OAuth authorization server
-- `task test-security` - Run security tests
-- `task demo-security` - Run security demonstrations
+- `task generate-keys` - Generate RSA key pair for OAuth JWT signing
+- `task generate-certs` - Generate self-signed certificates
+- `task test` - Run all pytest tests
 - `task format` - Format code with Black and Ruff
 - `task clean` - Clean up generated files
+
+### Development Mode Tasks
+- `task run-server` - Run MCP server (stdio transport)
+- `task run-oauth` - Run OAuth server on port 8080
+- `task run-openai-client` - Run OpenAI client (for local services)
+
+### Docker Mode Tasks
+- `task docker-build` - Build Docker images
+- `task docker-up` - Start all services with TLS
+- `task docker-down` - Stop all services
+- `task docker-logs` - View service logs
+- `task docker-restart` - Restart services
+- `task docker-clean` - Clean up containers and volumes
+- `task docker-shell-oauth` - Debug OAuth container
+- `task docker-shell-mcp` - Debug MCP container
+- `task run-openai-client-docker` - Run OpenAI client for Docker services
 
 ## Security Checklist
 
@@ -180,10 +351,31 @@ The examples demonstrate:
 
 ## Troubleshooting
 
+### Development Mode Issues
 - **OAuth token errors**: Check your OAuth server configuration and client credentials
+- **Import errors**: Run `task setup` to install dependencies
+- **Key errors**: Run `task generate-keys` to create RSA key pairs
+- **Certificate errors**: Run `task generate-certs` to create self-signed certificates
+
+### Docker Mode Issues
 - **TLS certificate errors**: Ensure certificates are valid and properly configured
-- **Rate limit issues**: Check Redis connection and rate limit configuration
+- **Container startup failures**: Check Docker logs with `task docker-logs`
+- **Port conflicts**: Ensure ports 80, 443, 8001, 8080, 8443 are available
+- **Redis connection errors**: Check Redis container status and configuration
 - **Client connection failures**: Verify OAuth tokens and TLS settings
+
+### Common Solutions
+- **Permission denied**: Ensure certificate files have correct permissions (600)
+- **Rate limit issues**: Check Redis connection and rate limit configuration
+- **API key errors**: Verify your OpenAI/Anthropic API keys in .env file
+- **Network issues**: Check Docker network configuration and container connectivity
+
+### Switching Between Modes
+When switching between development and Docker modes:
+1. **Update .env file**: Change the URLs as shown in the comparison table
+2. **Stop all services**: Ensure no port conflicts
+3. **For Docker → Development**: Stop Docker (`task docker-down`) before starting local services
+4. **For Development → Docker**: Stop local services (Ctrl+C) before starting Docker
 
 ## Learn More
 

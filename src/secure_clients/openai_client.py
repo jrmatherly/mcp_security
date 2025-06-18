@@ -42,8 +42,17 @@ class SecureOpenAIMCPClient:
         self.tool_to_session = {}
 
         # Configure secure HTTP client with TLS verification
+        ca_cert_path = oauth_config.get('ca_cert_path', None)
+        
+        # Check for SSL environment variables (used by mkcert script)
+        ssl_cert_file = os.environ.get('SSL_CERT_FILE')
+        if ssl_cert_file and os.path.exists(ssl_cert_file):
+            ca_cert_path = ssl_cert_file
+            if os.environ.get('DEBUG_SSL'):
+                print(f"🔐 Using SSL_CERT_FILE: {ssl_cert_file}")
+        
         self.http_client = httpx.AsyncClient(
-            verify=oauth_config.get('ca_cert_path', True),
+            verify=ca_cert_path if ca_cert_path else True,
             timeout=30.0
         )
 
@@ -55,7 +64,7 @@ class SecureOpenAIMCPClient:
         if self.access_token and current_time < self.token_expires_at - 60:
             return self.access_token
 
-        # Request new token
+        # Request new token using the configured HTTP client
         response = await self.http_client.post(
             self.oauth_config['token_url'],
             data={
@@ -83,11 +92,30 @@ class SecureOpenAIMCPClient:
         # Get fresh access token
         access_token = await self.get_oauth_token()
 
-        # Create HTTP client with authentication headers
+        # Create custom httpx client factory with our CA bundle
+        def custom_httpx_client_factory(headers=None, timeout=None, auth=None):
+            # Get the same CA cert path we use for the main client
+            ca_cert_path = self.oauth_config.get('ca_cert_path', None)
+            ssl_cert_file = os.environ.get('SSL_CERT_FILE')
+            if ssl_cert_file and os.path.exists(ssl_cert_file):
+                ca_cert_path = ssl_cert_file
+                if os.environ.get('DEBUG_SSL'):
+                    print(f"🔐 MCP client using SSL_CERT_FILE: {ssl_cert_file}")
+            
+            return httpx.AsyncClient(
+                headers=headers,
+                timeout=timeout if timeout else httpx.Timeout(30.0),
+                auth=auth,
+                verify=ca_cert_path if ca_cert_path else True,
+                follow_redirects=True
+            )
+
+        # Create HTTP client with authentication headers and custom SSL verification
         http_transport = await self.exit_stack.enter_async_context(
             streamablehttp_client(
                 url=self.oauth_config['mcp_server_url'],
-                headers={"Authorization": f"Bearer {access_token}"}
+                headers={"Authorization": f"Bearer {access_token}"},
+                httpx_client_factory=custom_httpx_client_factory
             )
         )
 
@@ -271,14 +299,9 @@ async def main():
         'mcp_server_url': os.environ.get('MCP_SERVER_URL', 'http://localhost:8000/mcp'),
         'ca_cert_path': os.environ.get('TLS_CA_CERT_PATH', None)  # For demo, disable TLS verification
     }
-
-
+    
     # Check for OpenAI API key (from environment or .env file)
     openai_api_key = os.environ.get('OPENAI_API_KEY')
-    
-    # Debug: Show where we're looking for .env
-    print(f"📁 Looking for .env at: {env_path}")
-    print(f"   .env exists: {env_path.exists()}")
     
     if not openai_api_key or openai_api_key == 'your-openai-api-key-here':
         if openai_api_key == 'your-openai-api-key-here':
@@ -301,13 +324,27 @@ async def main():
     try:
         # First, check if OAuth server is running
         print("🔍 Checking OAuth server...")
+        oauth_url = oauth_config['token_url'].replace('/token', '')
+        
         try:
-            import httpx
-            response = httpx.get("http://localhost:8080/", timeout=2)
-            print("✅ OAuth server is running")
-        except Exception:
-            print("❌ OAuth server is not running!")
-            print("   Please start it first with: task run-oauth")
+            # Use the same CA verification logic as the main client
+            ca_cert_path = oauth_config.get('ca_cert_path', None)
+            ssl_cert_file = os.environ.get('SSL_CERT_FILE')
+            if ssl_cert_file and os.path.exists(ssl_cert_file):
+                ca_cert_path = ssl_cert_file
+                
+            async with httpx.AsyncClient(verify=ca_cert_path if ca_cert_path else True, timeout=2) as test_client:
+                response = await test_client.get(oauth_url)
+                print(f"✅ OAuth server is running at {oauth_url}")
+        except Exception as e:
+            print(f"❌ OAuth server is not accessible at {oauth_url}")
+            if oauth_url.startswith('https://'):
+                print("   If using Docker, ensure:")
+                print("   1. Docker services are running: task docker-up")
+                print("   2. Using correct .env file with HTTPS URLs")
+            else:
+                print("   Please start it first with: task run-oauth")
+            print(f"   Error: {str(e)}")
             return
             
         print("🔌 Connecting to secure MCP server...")

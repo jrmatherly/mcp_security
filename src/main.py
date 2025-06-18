@@ -225,8 +225,8 @@ if __name__ == "__main__":
 
     load_dotenv()
 
-    host = os.getenv("MCP_SERVER_HOST", "127.0.0.1")
-    port = int(os.getenv("MCP_SERVER_PORT", "8000"))
+    host = Config.MCP_SERVER_HOST
+    port = Config.MCP_SERVER_PORT
 
     print("🔒 Starting Secure Customer Service MCP Server with OAuth")
     print("📋 Available Tools:")
