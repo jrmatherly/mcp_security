@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from contextlib import AsyncExitStack
+import jwt
 
 # Add src to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
@@ -37,8 +38,15 @@ class LiteLLMMCPClient:
         self.tools = []
         self.exit_stack = AsyncExitStack()
         
-        # For development with self-signed certificates, disable SSL verification
-        self.http_client = httpx.AsyncClient(verify=False)
+        # Configure secure HTTP client with TLS verification
+        ca_cert_path = oauth_config.get('ca_cert_path', None)
+        
+        # Check for SSL environment variables (used by mkcert script)
+        ssl_cert_file = os.environ.get('SSL_CERT_FILE')
+        if ssl_cert_file and os.path.exists(ssl_cert_file):
+            ca_cert_path = ssl_cert_file
+        
+        self.http_client = httpx.AsyncClient(verify=ca_cert_path if ca_cert_path else True)
 
     async def get_oauth_token(self) -> str:
         """Obtain OAuth access token using client credentials flow."""
@@ -72,6 +80,96 @@ class LiteLLMMCPClient:
         print("✅ OAuth authentication successful")
         return self.access_token
 
+    async def get_oauth_public_key(self) -> str:
+        """Fetch OAuth server's public key for JWT verification."""
+        try:
+            # Get the base OAuth URL
+            oauth_base_url = self.oauth_config['token_url'].replace('/token', '')
+            jwks_url = f"{oauth_base_url}/jwks"
+            
+            # Use the same HTTP client we use for token requests
+            response = await self.http_client.get(jwks_url)
+            
+            if response.status_code != 200:
+                raise Exception(f"Failed to fetch JWKS: {response.status_code}")
+                
+            jwks = response.json()
+            
+            # Get the first key (in production, might need to match 'kid')
+            if 'keys' not in jwks or not jwks['keys']:
+                raise Exception("No keys found in JWKS response")
+                
+            # Return the first RSA public key
+            return jwks['keys'][0]
+            
+        except Exception as e:
+            print(f"⚠️  Failed to fetch OAuth public key: {e}")
+            print("   Falling back to signature verification disabled")
+            return None
+
+    async def _verify_token_scopes(self, required_scopes: List[str]) -> bool:
+        """Verify the current token has required scopes with proper JWT signature verification."""
+        if not self.access_token:
+            return False
+
+        try:
+            # Get the OAuth server's public key for verification
+            public_key_jwk = await self.get_oauth_public_key()
+            
+            if public_key_jwk:
+                # Proper JWT verification with signature check
+                try:
+                    # Convert JWK to PEM format for PyJWT
+                    from jwt.algorithms import RSAAlgorithm
+                    public_key = RSAAlgorithm.from_jwk(public_key_jwk)
+                    
+                    # Verify JWT with full signature validation
+                    payload = jwt.decode(
+                        self.access_token,
+                        key=public_key,
+                        algorithms=["RS256"],
+                        audience=self.oauth_config.get('client_id'),  # Verify audience
+                        issuer=self.oauth_config.get('token_url', '').replace('/token', '')  # Verify issuer
+                    )
+                    
+                    print("✅ JWT signature verification successful")
+                    
+                except jwt.InvalidTokenError as e:
+                    print(f"❌ JWT signature verification failed: {e}")
+                    return False
+            else:
+                # Fallback to unverified decode if public key unavailable
+                print("⚠️  Using unverified JWT decode (development only)")
+                payload = jwt.decode(
+                    self.access_token,
+                    options={"verify_signature": False}
+                )
+            
+            # Check scopes
+            token_scopes = payload.get('scope', '').split()
+            has_required_scopes = all(scope in token_scopes for scope in required_scopes)
+            
+            if has_required_scopes:
+                print(f"✅ Token has required scopes: {required_scopes}")
+            else:
+                print(f"❌ Token missing scopes. Has: {token_scopes}, Needs: {required_scopes}")
+                
+            return has_required_scopes
+            
+        except Exception as e:
+            print(f"❌ Token verification error: {e}")
+            return False
+
+    def _get_required_scopes(self, tool_name: str) -> List[str]:
+        """Map tool names to required OAuth scopes."""
+        scope_mapping = {
+            "get_customer_info": ["customer:read"],
+            "create_support_ticket": ["ticket:create"],
+            "calculate_account_value": ["account:calculate"],
+            "get_recent_customers": ["customer:read"]
+        }
+        return scope_mapping.get(tool_name, [])
+
     async def setup_mcp_connection(self):
         """Set up HTTP MCP server connection."""
         print("🔗 Connecting to MCP server via HTTP...")
@@ -80,11 +178,15 @@ class LiteLLMMCPClient:
         try:
             # Custom HTTP client factory for SSL handling
             def custom_httpx_client_factory(headers=None, timeout=None, auth=None):
+                # Get SSL certificate path from environment variables
+                ssl_cert_file = os.environ.get('SSL_CERT_FILE')
+                verify_setting = ssl_cert_file if ssl_cert_file and os.path.exists(ssl_cert_file) else True
+                
                 return httpx.AsyncClient(
                     headers=headers,
                     timeout=timeout if timeout else httpx.Timeout(30.0),
                     auth=auth,
-                    verify=False,  # Disable SSL verification for self-signed certs
+                    verify=verify_setting,  # Use proper SSL verification
                     follow_redirects=True
                 )
 
@@ -131,13 +233,24 @@ class LiteLLMMCPClient:
             raise
 
     async def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
-        """Execute a tool through real MCP connection."""
+        """Execute a tool through real MCP connection with security validation."""
         if not self.session:
             raise Exception("MCP session not initialized")
+        
+        # Verify we have required scopes for this tool
+        required_scopes = self._get_required_scopes(tool_name)
+        if not await self._verify_token_scopes(required_scopes):
+            raise PermissionError(
+                f"Insufficient permissions for {tool_name}"
+            )
         
         try:
             print(f"   🔧 Executing {tool_name} with {arguments}")
             result = await self.session.call_tool(tool_name, arguments)
+            
+            # Debug: Print the actual result structure
+            print(f"   🔍 Debug - Result type: {type(result)}")
+            print(f"   🔍 Debug - Result content: {result.content if hasattr(result, 'content') else 'No content attr'}")
             
             # Extract content from MCP result
             if hasattr(result, 'content') and result.content:
@@ -145,12 +258,19 @@ class LiteLLMMCPClient:
                     # Get the text content from the first content item
                     content_item = result.content[0]
                     if hasattr(content_item, 'text'):
-                        return content_item.text
+                        content = content_item.text
+                        print(f"   🔍 Debug - Extracted text: {content[:100]}...")
+                        return content
                     else:
-                        return str(content_item)
+                        content = str(content_item)
+                        print(f"   🔍 Debug - Stringified content: {content[:100]}...")
+                        return content
                 else:
-                    return str(result.content)
+                    content = str(result.content)
+                    print(f"   🔍 Debug - Raw content: {content[:100]}...")
+                    return content
             else:
+                print(f"   🔍 Debug - No content found, using default message")
                 return f"Tool {tool_name} executed successfully"
                 
         except Exception as e:

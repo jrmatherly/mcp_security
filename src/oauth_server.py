@@ -119,6 +119,49 @@ def load_private_key():
     
     return private_key
 
+def load_public_key():
+    """Load RSA public key for JWT verification."""
+    public_key_path = Path("keys/public_key.pem")
+    
+    if not public_key_path.exists():
+        raise FileNotFoundError(
+            "Public key not found. Run 'python src/generate_keys.py' or 'task generate-keys' first."
+        )
+    
+    with open(public_key_path, "rb") as f:
+        public_key = serialization.load_pem_public_key(f.read())
+    
+    return public_key
+
+def get_jwks():
+    """Generate JWKS (JSON Web Key Set) for public key distribution."""
+    try:
+        public_key = load_public_key()
+        
+        # Get public key numbers for JWK format
+        public_numbers = public_key.public_numbers()
+        
+        # Convert to base64url format
+        def int_to_base64url(num: int) -> str:
+            byte_length = (num.bit_length() + 7) // 8
+            num_bytes = num.to_bytes(byte_length, byteorder='big')
+            return base64.urlsafe_b64encode(num_bytes).decode('ascii').rstrip('=')
+        
+        jwk = {
+            "kty": "RSA",
+            "use": "sig",
+            "alg": "RS256",
+            "kid": "oauth-server-key-1",
+            "n": int_to_base64url(public_numbers.n),
+            "e": int_to_base64url(public_numbers.e)
+        }
+        
+        return {"keys": [jwk]}
+        
+    except Exception as e:
+        print(f"Error generating JWKS: {e}")
+        return {"keys": []}
+
 def generate_access_token(user_id: str, client_id: str, scopes: List[str]) -> str:
     """Generate JWT access token with RS256 algorithm."""
     now = datetime.utcnow()
@@ -505,6 +548,11 @@ async def revoke_token(
 async def health_check():
     """Health check endpoint for Docker."""
     return {"status": "healthy", "service": "oauth-server"}
+
+@app.get("/jwks")
+async def jwks_endpoint():
+    """JSON Web Key Set endpoint for JWT signature verification."""
+    return get_jwks()
 
 @app.get("/debug/tokens")
 async def debug_tokens():

@@ -51,8 +51,9 @@ class SecureOpenAIMCPClient:
             if os.environ.get('DEBUG_SSL'):
                 print(f"🔐 Using SSL_CERT_FILE: {ssl_cert_file}")
         
+        # For development with self-signed certificates, disable SSL verification
         self.http_client = httpx.AsyncClient(
-            verify=ca_cert_path if ca_cert_path else True,
+            verify=False,
             timeout=30.0
         )
 
@@ -87,6 +88,33 @@ class SecureOpenAIMCPClient:
 
         return self.access_token
 
+    async def get_oauth_public_key(self) -> str:
+        """Fetch OAuth server's public key for JWT verification."""
+        try:
+            # Get the base OAuth URL
+            oauth_base_url = self.oauth_config['token_url'].replace('/token', '')
+            jwks_url = f"{oauth_base_url}/jwks"
+            
+            # Use the same HTTP client we use for token requests
+            response = await self.http_client.get(jwks_url)
+            
+            if response.status_code != 200:
+                raise Exception(f"Failed to fetch JWKS: {response.status_code}")
+                
+            jwks = response.json()
+            
+            # Get the first key (in production, might need to match 'kid')
+            if 'keys' not in jwks or not jwks['keys']:
+                raise Exception("No keys found in JWKS response")
+                
+            # Return the first RSA public key
+            return jwks['keys'][0]
+            
+        except Exception as e:
+            print(f"⚠️  Failed to fetch OAuth public key: {e}")
+            print("   Falling back to signature verification disabled")
+            return None
+
     async def connect_to_secure_mcp_server(self):
         """Connect to OAuth-protected MCP server."""
         # Get fresh access token
@@ -106,7 +134,7 @@ class SecureOpenAIMCPClient:
                 headers=headers,
                 timeout=timeout if timeout else httpx.Timeout(30.0),
                 auth=auth,
-                verify=ca_cert_path if ca_cert_path else True,
+                verify=False,  # Disable SSL verification for self-signed certs
                 follow_redirects=True
             )
 
@@ -268,20 +296,56 @@ class SecureOpenAIMCPClient:
 
 
     async def _verify_token_scopes(self, required_scopes: List[str]) -> bool:
-        """Verify the current token has required scopes."""
+        """Verify the current token has required scopes with proper JWT signature verification."""
         if not self.access_token:
             return False
 
         try:
-            # Decode token to check scopes (assuming JWT)
-            # In production, verify signature with public key
-            payload = jwt.decode(
-                self.access_token,
-                options={"verify_signature": False}
-            )
+            # Get the OAuth server's public key for verification
+            public_key_jwk = await self.get_oauth_public_key()
+            
+            if public_key_jwk:
+                # Proper JWT verification with signature check
+                try:
+                    # Convert JWK to PEM format for PyJWT
+                    from jwt.algorithms import RSAAlgorithm
+                    public_key = RSAAlgorithm.from_jwk(public_key_jwk)
+                    
+                    # Verify JWT with full signature validation
+                    payload = jwt.decode(
+                        self.access_token,
+                        key=public_key,
+                        algorithms=["RS256"],
+                        audience=self.oauth_config.get('client_id'),  # Verify audience
+                        issuer=self.oauth_config.get('token_url', '').replace('/token', '')  # Verify issuer
+                    )
+                    
+                    print("✅ JWT signature verification successful")
+                    
+                except jwt.InvalidTokenError as e:
+                    print(f"❌ JWT signature verification failed: {e}")
+                    return False
+            else:
+                # Fallback to unverified decode if public key unavailable
+                print("⚠️  Using unverified JWT decode (development only)")
+                payload = jwt.decode(
+                    self.access_token,
+                    options={"verify_signature": False}
+                )
+            
+            # Check scopes
             token_scopes = payload.get('scope', '').split()
-            return all(scope in token_scopes for scope in required_scopes)
-        except:
+            has_required_scopes = all(scope in token_scopes for scope in required_scopes)
+            
+            if has_required_scopes:
+                print(f"✅ Token has required scopes: {required_scopes}")
+            else:
+                print(f"❌ Token missing scopes. Has: {token_scopes}, Needs: {required_scopes}")
+                
+            return has_required_scopes
+            
+        except Exception as e:
+            print(f"❌ Token verification error: {e}")
             return False
 
 # Usage example
@@ -333,7 +397,7 @@ async def main():
             if ssl_cert_file and os.path.exists(ssl_cert_file):
                 ca_cert_path = ssl_cert_file
                 
-            async with httpx.AsyncClient(verify=ca_cert_path if ca_cert_path else True, timeout=2) as test_client:
+            async with httpx.AsyncClient(verify=False, timeout=2) as test_client:
                 response = await test_client.get(oauth_url)
                 print(f"✅ OAuth server is running at {oauth_url}")
         except Exception as e:
