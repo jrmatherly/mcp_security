@@ -41,6 +41,11 @@ tasks:
     cmds:
       - poetry run python src/secure_clients/anthropic_client.py
 
+  run-langchain-client:
+    desc: "Run the secure LangChain ReAct agent demo"
+    cmds:
+      - poetry run python src/secure_clients/langchain_client.py
+
   test:
     desc: "Run all tests"
     cmds:

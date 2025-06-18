@@ -111,6 +111,12 @@ task docker-up
 - **Pull model**: `ollama pull gemma3:27b`
 - **Note**: Server supports Ollama, but no secure client implementation yet
 
+### LangChain (Multi-Provider)
+- **Client**: `src/secure_clients/langchain_client.py`
+- **Task**: `task run-langchain-client`
+- **Requires**: OpenAI API key (uses GPT-4 as the underlying LLM)
+- **Features**: ReAct agent with secure MCP tool integration and OAuth authentication
+
 ## Project Structure
 
 ```
@@ -125,8 +131,8 @@ task docker-up
 │   │   ├── __init__.py
 │   │   ├── openai_client.py         # ✅ Secure OpenAI GPT-4 client
 │   │   ├── anthropic_client.py      # ✅ Secure Anthropic Claude client
+│   │   ├── langchain_client.py      # ✅ Secure LangChain integration
 │   │   ├── claude_desktop.py        # ⏳ Secure Claude Desktop integration
-│   │   ├── langchain_client.py      # ⏳ Secure LangChain integration
 │   │   ├── dspy_client.py           # ⏳ Secure DSPy integration
 │   │   └── litellm_client.py        # ⏳ Secure LiteLLM integration
 │   └── security/
@@ -194,6 +200,7 @@ task run-server          # Runs on stdio (FastMCP 2.8+)
 # Terminal 3: Run AI clients
 task run-openai-client     # OpenAI GPT-4 client
 task run-anthropic-client  # Anthropic Claude client
+task run-langchain-client  # LangChain ReAct agent client
 ```
 
 #### Running without Tasks
@@ -207,6 +214,7 @@ poetry run python src/main.py
 # Terminal 3: AI clients
 poetry run python src/secure_clients/openai_client.py     # OpenAI
 poetry run python src/secure_clients/anthropic_client.py  # Anthropic
+poetry run python src/secure_clients/langchain_client.py  # LangChain
 ```
 
 #### Testing
@@ -217,6 +225,7 @@ curl http://localhost:8080/
 # Test with AI clients
 task run-openai-client     # Test OpenAI integration
 task run-anthropic-client  # Test Anthropic integration
+task run-langchain-client  # Test LangChain integration
 
 # Run all tests
 task test
@@ -249,6 +258,7 @@ task docker-logs
 # Run AI clients against Docker services
 task run-openai-client     # OpenAI client with HTTPS
 task run-anthropic-client  # Anthropic client with HTTPS
+task run-langchain-client  # LangChain client with HTTPS
 
 # Stop all services
 task docker-down
@@ -313,6 +323,7 @@ task docker-shell-mcp
 - `task run-oauth` - Run OAuth server on port 8080
 - `task run-openai-client` - Run OpenAI client (for local services)
 - `task run-anthropic-client` - Run Anthropic Claude client (for local services)
+- `task run-langchain-client` - Run LangChain ReAct agent client (for local services)
 
 ### Docker Mode Tasks
 - `task docker-build` - Build Docker images
