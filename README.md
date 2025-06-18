@@ -117,6 +117,12 @@ task docker-up
 - **Requires**: OpenAI API key (uses GPT-4 as the underlying LLM)
 - **Features**: ReAct agent with secure MCP tool integration and OAuth authentication
 
+### DSPy (Multi-Provider)
+- **Client**: `src/secure_clients/dspy_client.py`
+- **Task**: `task run-dspy-client`
+- **Requires**: OpenAI or Anthropic API key (configurable via LLM_PROVIDER)
+- **Features**: DSPy ReAct agent with OAuth 2.1 and TLS security
+
 ## Project Structure
 
 ```
@@ -132,8 +138,8 @@ task docker-up
 │   │   ├── openai_client.py         # ✅ Secure OpenAI GPT-4 client
 │   │   ├── anthropic_client.py      # ✅ Secure Anthropic Claude client
 │   │   ├── langchain_client.py      # ✅ Secure LangChain integration
+│   │   ├── dspy_client.py           # ✅ Secure DSPy integration
 │   │   ├── claude_desktop.py        # ⏳ Secure Claude Desktop integration
-│   │   ├── dspy_client.py           # ⏳ Secure DSPy integration
 │   │   └── litellm_client.py        # ⏳ Secure LiteLLM integration
 │   └── security/
 │       ├── __init__.py
@@ -201,6 +207,7 @@ task run-server          # Runs on stdio (FastMCP 2.8+)
 task run-openai-client     # OpenAI GPT-4 client
 task run-anthropic-client  # Anthropic Claude client
 task run-langchain-client  # LangChain ReAct agent client
+task run-dspy-client       # DSPy ReAct agent client
 ```
 
 #### Running without Tasks
@@ -215,6 +222,7 @@ poetry run python src/main.py
 poetry run python src/secure_clients/openai_client.py     # OpenAI
 poetry run python src/secure_clients/anthropic_client.py  # Anthropic
 poetry run python src/secure_clients/langchain_client.py  # LangChain
+poetry run python src/secure_clients/dspy_client.py       # DSPy
 ```
 
 #### Testing
@@ -226,6 +234,7 @@ curl http://localhost:8080/
 task run-openai-client     # Test OpenAI integration
 task run-anthropic-client  # Test Anthropic integration
 task run-langchain-client  # Test LangChain integration
+task run-dspy-client       # Test DSPy integration
 
 # Run all tests
 task test
@@ -259,6 +268,7 @@ task docker-logs
 task run-openai-client     # OpenAI client with HTTPS
 task run-anthropic-client  # Anthropic client with HTTPS
 task run-langchain-client  # LangChain client with HTTPS
+task run-dspy-client       # DSPy client with HTTPS
 
 # Stop all services
 task docker-down
@@ -324,6 +334,7 @@ task docker-shell-mcp
 - `task run-openai-client` - Run OpenAI client (for local services)
 - `task run-anthropic-client` - Run Anthropic Claude client (for local services)
 - `task run-langchain-client` - Run LangChain ReAct agent client (for local services)
+- `task run-dspy-client` - Run DSPy ReAct agent client (for local services)
 
 ### Docker Mode Tasks
 - `task docker-build` - Build Docker images

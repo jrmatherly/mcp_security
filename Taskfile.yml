@@ -46,6 +46,11 @@ tasks:
     cmds:
       - poetry run python src/secure_clients/langchain_client.py
 
+  run-dspy-client:
+    desc: "Run the secure DSPy ReAct agent demo"
+    cmds:
+      - poetry run python src/secure_clients/dspy_client.py
+
   test:
     desc: "Run all tests"
     cmds:
