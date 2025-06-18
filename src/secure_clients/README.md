@@ -11,6 +11,15 @@ The OpenAI client (`openai_client.py`) shows how to:
 - Handle rate limiting and token refresh with automatic retry
 - Execute MCP tools with proper security context and scope validation
 
+## Anthropic Client
+
+The Anthropic client (`anthropic_client.py`) provides:
+- OAuth 2.1 authentication with Claude API integration
+- Secure connection to MCP servers with JWT token validation
+- Tool discovery and execution with scope-based access control
+- SSL certificate verification and error handling
+- Real-time conversation flow with tool result integration
+
 ## Deployment Options
 
 ### Option 1: Local Development (HTTP)
@@ -37,9 +46,13 @@ The OpenAI client (`openai_client.py`) shows how to:
    MCP_SERVER_URL=http://localhost:8000/mcp
    ```
 
-**Run the client:**
+**Run the clients:**
 ```bash
+# OpenAI client
 task run-openai-client
+
+# Anthropic client (requires ANTHROPIC_API_KEY)
+python src/secure_clients/anthropic_client.py
 ```
 
 ### Option 2: Docker with TLS (HTTPS)
@@ -66,9 +79,13 @@ task run-openai-client
    MCP_SERVER_URL=https://localhost:8001/mcp/
    ```
 
-**Run the client with SSL support:**
+**Run the clients with SSL support:**
 ```bash
+# OpenAI client
 bash ./scripts/run-client-with-mkcert.sh
+
+# Anthropic client with SSL
+ANTHROPIC_API_KEY=sk-ant-... bash ./scripts/run-client-with-mkcert.sh python src/secure_clients/anthropic_client.py
 ```
 
 ## How It Works

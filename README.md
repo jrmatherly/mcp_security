@@ -91,21 +91,25 @@ task docker-up
 ## Supported LLM Providers
 
 ### OpenAI
-
-- Model: gpt-4.1-2025-04-14
-- Requires: OpenAI API key
+- **Model**: gpt-4.1-2025-04-14
+- **Client**: `src/secure_clients/openai_client.py`
+- **Task**: `task run-openai-client`
+- **Requires**: OpenAI API key (`OPENAI_API_KEY` in .env)
+- **Features**: Function calling with tool results display
 
 ### Anthropic (Claude)
-
-- Model: claude-sonnet-4-20250514
-- Requires: Anthropic API key
+- **Model**: claude-sonnet-4-20250514
+- **Client**: `src/secure_clients/anthropic_client.py`
+- **Task**: `task run-anthropic-client`
+- **Requires**: Anthropic API key (`ANTHROPIC_API_KEY` in .env)
+- **Features**: Tool execution with Claude's analysis and commentary
 
 ### Ollama (Local)
-
-- Model: gemma3:27b
-- Requires: Ollama installed and gemma3:27b model pulled
-- Install: `brew install ollama` (macOS) or see [ollama.ai](https://ollama.ai/)
-- Pull model: `ollama pull gemma3:27b`
+- **Model**: gemma3:27b
+- **Requires**: Ollama installed and gemma3:27b model pulled
+- **Install**: `brew install ollama` (macOS) or see [ollama.ai](https://ollama.ai/)
+- **Pull model**: `ollama pull gemma3:27b`
+- **Note**: Server supports Ollama, but no secure client implementation yet
 
 ## Project Structure
 
@@ -119,12 +123,12 @@ task docker-up
 │   ├── oauth_server.py              # OAuth 2.1 authorization server
 │   ├── secure_clients/
 │   │   ├── __init__.py
-│   │   ├── claude_desktop.py        # Secure Claude Desktop integration
-│   │   ├── openai_client.py         # Secure OpenAI client
-│   │   ├── anthropic_client.py      # Secure Anthropic client
-│   │   ├── langchain_client.py      # Secure LangChain integration
-│   │   ├── dspy_client.py           # Secure DSPy integration
-│   │   └── litellm_client.py        # Secure LiteLLM integration
+│   │   ├── openai_client.py         # ✅ Secure OpenAI GPT-4 client
+│   │   ├── anthropic_client.py      # ✅ Secure Anthropic Claude client
+│   │   ├── claude_desktop.py        # ⏳ Secure Claude Desktop integration
+│   │   ├── langchain_client.py      # ⏳ Secure LangChain integration
+│   │   ├── dspy_client.py           # ⏳ Secure DSPy integration
+│   │   └── litellm_client.py        # ⏳ Secure LiteLLM integration
 │   └── security/
 │       ├── __init__.py
 │       ├── auth.py                  # Authentication middleware
@@ -187,8 +191,9 @@ task run-oauth           # Runs on http://localhost:8080
 # Terminal 2: Start MCP server
 task run-server          # Runs on stdio (FastMCP 2.8+)
 
-# Terminal 3: Run OpenAI client
-task run-openai-client   # Connects to local services
+# Terminal 3: Run AI clients
+task run-openai-client     # OpenAI GPT-4 client
+task run-anthropic-client  # Anthropic Claude client
 ```
 
 #### Running without Tasks
@@ -199,8 +204,9 @@ poetry run python src/oauth_server.py
 # Terminal 2: MCP server
 poetry run python src/main.py
 
-# Terminal 3: OpenAI client
-poetry run python src/secure_clients/openai_client.py
+# Terminal 3: AI clients
+poetry run python src/secure_clients/openai_client.py     # OpenAI
+poetry run python src/secure_clients/anthropic_client.py  # Anthropic
 ```
 
 #### Testing
@@ -208,8 +214,9 @@ poetry run python src/secure_clients/openai_client.py
 # Test OAuth server
 curl http://localhost:8080/
 
-# Test with OpenAI client
-task run-openai-client
+# Test with AI clients
+task run-openai-client     # Test OpenAI integration
+task run-anthropic-client  # Test Anthropic integration
 
 # Run all tests
 task test
@@ -239,8 +246,9 @@ task docker-up
 # View logs
 task docker-logs
 
-# Run OpenAI client against Docker services
-task run-openai-client
+# Run AI clients against Docker services
+task run-openai-client     # OpenAI client with HTTPS
+task run-anthropic-client  # Anthropic client with HTTPS
 
 # Stop all services
 task docker-down
@@ -255,11 +263,17 @@ docker-compose up -d
 # View logs
 docker-compose logs -f
 
-# Run OpenAI client with Docker URLs
+# Run AI clients with Docker URLs
 OAUTH_TOKEN_URL=https://localhost:8443/token \
 MCP_SERVER_URL=https://localhost:8001/mcp \
 TLS_CA_CERT_PATH= \
 poetry run python src/secure_clients/openai_client.py
+
+# Or Anthropic client
+OAUTH_TOKEN_URL=https://localhost:8443/token \
+MCP_SERVER_URL=https://localhost:8001/mcp \
+TLS_CA_CERT_PATH= \
+poetry run python src/secure_clients/anthropic_client.py
 
 # Stop services
 docker-compose down
@@ -298,6 +312,7 @@ task docker-shell-mcp
 - `task run-server` - Run MCP server (stdio transport)
 - `task run-oauth` - Run OAuth server on port 8080
 - `task run-openai-client` - Run OpenAI client (for local services)
+- `task run-anthropic-client` - Run Anthropic Claude client (for local services)
 
 ### Docker Mode Tasks
 - `task docker-build` - Build Docker images
@@ -308,7 +323,6 @@ task docker-shell-mcp
 - `task docker-clean` - Clean up containers and volumes
 - `task docker-shell-oauth` - Debug OAuth container
 - `task docker-shell-mcp` - Debug MCP container
-- `task run-openai-client-docker` - Run OpenAI client for Docker services
 
 ## Security Checklist
 
