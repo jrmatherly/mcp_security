@@ -9,8 +9,9 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Dict, Any, Optional
 
-from fastmcp import FastMCP
+from fastmcp import FastMCP, Context, ToolError
 from fastmcp.server.auth import BearerAuthProvider
+from fastmcp.server.dependencies import get_access_token, AccessToken
 
 from config import Config
 from security.validation import SecureTicketRequest, SecureCustomerRequest, SecureCalculationRequest
@@ -77,6 +78,44 @@ mcp = FastMCP(
     auth=auth_provider
 )
 
+def _get_required_scopes(tool_name: str) -> list[str]:
+    """Map tool names to required OAuth scopes - same as clients."""
+    scope_mapping = {
+        "get_customer_info": ["customer:read"],
+        "create_support_ticket": ["ticket:create"],
+        "calculate_account_value": ["account:calculate"],
+        "get_recent_customers": ["customer:read"]
+    }
+    return scope_mapping.get(tool_name, [])
+
+async def _check_tool_permissions(tool_name: str) -> None:
+    """Check if current token has required scopes for the tool."""
+    try:
+        # Get the validated access token from FastMCP
+        access_token: AccessToken = await get_access_token()
+        
+        # Get required scopes for this tool
+        required_scopes = _get_required_scopes(tool_name)
+        
+        # Extract scopes from token (same as clients)
+        token_scopes = getattr(access_token, 'scopes', [])
+        if isinstance(token_scopes, str):
+            token_scopes = token_scopes.split()
+        
+        # Check if token has all required scopes
+        missing_scopes = [scope for scope in required_scopes if scope not in token_scopes]
+        
+        if missing_scopes:
+            security_logger.warning(f"Access denied to {tool_name}: missing scopes {missing_scopes}")
+            raise ToolError(f"Insufficient permissions for {tool_name}. Missing scopes: {missing_scopes}")
+        
+        security_logger.info(f"Access granted to {tool_name}: scopes verified")
+        
+    except Exception as e:
+        # If we can't get the token or verify scopes, deny access
+        security_logger.error(f"Permission check failed for {tool_name}: {e}")
+        raise ToolError(f"Permission verification failed for {tool_name}")
+
 
 @mcp.tool
 async def get_customer_info(customer_id: str) -> Dict[str, Any]:
@@ -88,6 +127,9 @@ async def get_customer_info(customer_id: str) -> Dict[str, Any]:
     Returns:
         Customer information including name, status, and last activity
     """
+    # Check permissions first (server-side scope validation)
+    await _check_tool_permissions("get_customer_info")
+    
     try:
         request = SecureCustomerRequest(customer_id=customer_id)
         security_logger.info(f"Retrieved customer info for {request.customer_id}")
@@ -125,6 +167,9 @@ async def create_support_ticket(
     Returns:
         Created ticket information with ticket ID and details
     """
+    # Check permissions first (server-side scope validation)
+    await _check_tool_permissions("create_support_ticket")
+    
     try:
         request = SecureTicketRequest(
             customer_id=customer_id,
@@ -164,6 +209,9 @@ async def calculate_account_value(
     Returns:
         Account value calculation including total, average, and statistics
     """
+    # Check permissions first (server-side scope validation)
+    await _check_tool_permissions("calculate_account_value")
+    
     try:
         request = SecureCalculationRequest(
             customer_id=customer_id,
