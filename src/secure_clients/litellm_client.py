@@ -9,6 +9,9 @@ import sys
 import time
 from typing import Any, Dict, List
 
+# Add src to path for imports
+sys.path.append(str(Path(__file__).parent.parent))
+
 from dotenv import load_dotenv
 import httpx
 import jwt
@@ -17,9 +20,6 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
 from config import Config
-
-# Add src to path for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
 # Load environment variables
 env_path = Path(__file__).parent.parent.parent / ".env"

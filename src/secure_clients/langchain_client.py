@@ -22,12 +22,13 @@ import jwt
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from mcp import ClientSession
+
+# Add src to path for imports
+sys.path.append(str(Path(__file__).parent.parent))
+
 from mcp.client.streamable_http import streamablehttp_client
 
 from config import Config
-
-sys.path.append(str(Path(__file__).parent.parent))
-
 
 env_path = Path(__file__).parent.parent.parent / ".env"
 load_dotenv(env_path)

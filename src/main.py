@@ -311,4 +311,8 @@ if __name__ == "__main__":
     print("🔐 OAuth Authentication: Required (Bearer token)")
     print(f"\n🌐 Running HTTP server on {host}:{port}")
 
-    mcp.run(transport="streamable-http", host=host, port=port)
+    try:
+        mcp.run(transport="streamable-http", host=host, port=port)
+    except KeyboardInterrupt:
+        logger.info("🛑 Server stopped gracefully")
+        print("\n🔐 Server shutdown complete")
