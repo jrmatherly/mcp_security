@@ -18,22 +18,12 @@ tasks:
       - poetry install
       - echo "✅ Setup complete! Virtual environment ready at .venv/"
 
-  generate-keys:
-    desc: "[DEPRECATED] Generate RSA key pair for OAuth JWT signing (not needed with OAuth Proxy)"
-    cmds:
-      - echo "⚠️  DEPRECATED - RSA keys not needed with Azure OAuth Proxy. Configure AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET in .env instead"
-
   run-server:
     desc: "Run the secure MCP server"
     cmds:
       - poetry run python src/main.py
     env:
       LLM_PROVIDER: "{{.LLM_PROVIDER | default \"ollama\"}}"
-
-  run-oauth:
-    desc: "[DEPRECATED] Run the OAuth authorization server (replaced by Azure OAuth Proxy)"
-    cmds:
-      - echo "⚠️  DEPRECATED - Local OAuth server replaced by Azure OAuth Proxy. Use 'task run-server' instead"
 
   run-openai-client:
     desc: "Run the secure OpenAI client demo"
