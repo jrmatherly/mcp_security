@@ -311,6 +311,11 @@ poetry env use .venv/bin/python
 poetry install
 ```
 
+```bash
+# If you need to recreate the virtual environment (hybrid uv + poetry approach)
+rm -rf .venv && uv venv .venv --python 3.12.11 && poetry env use .venv/bin/python && poetry install
+```
+
 #### Import Errors
 - Make sure you're running commands through Poetry: `poetry run python ...`
 - Or activate the shell first: `poetry shell`

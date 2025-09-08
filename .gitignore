@@ -35,9 +35,6 @@ ENV/
 env.bak/
 venv.bak/
 
-# Poetry
-poetry.lock
-
 # pytest
 .pytest_cache/
 .coverage
@@ -150,6 +147,20 @@ Pipfile.lock
 # Local test data
 test_data/
 tmp/
+temp/
+/temp/
+**/temp/
+
+# Temporary debugging files
+debug-*.py
+test-*.py
+analyze-*.sh
+*-debug.*
+*.debug
+
+# Don't ignore reports directory  
+!reports/
+!reports/**
 
 # MCP specific
 .fastmcp/
