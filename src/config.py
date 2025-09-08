@@ -17,6 +17,7 @@ class Config:
 
     # OpenAI Configuration
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
+    OPENAI_BASE_URL: Optional[str] = os.getenv("OPENAI_BASE_URL")
     OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4.1-2025-04-14")
 
     # Anthropic Configuration
@@ -31,17 +32,24 @@ class Config:
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "change-this-secret-key")
     OAUTH_CLIENT_ID: str = os.getenv("OAUTH_CLIENT_ID", "mcp-secure-client")
     OAUTH_CLIENT_SECRET: str = os.getenv("OAUTH_CLIENT_SECRET", "client-secret")
-    OAUTH_AUTH_URL: str = os.getenv("OAUTH_AUTH_URL", "https://auth.example.com/authorize")
-    OAUTH_TOKEN_URL: str = os.getenv("OAUTH_TOKEN_URL", "https://auth.example.com/token")
-    
+    OAUTH_AUTH_URL: str = os.getenv(
+        "OAUTH_AUTH_URL", "https://auth.example.com/authorize"
+    )
+    OAUTH_TOKEN_URL: str = os.getenv(
+        "OAUTH_TOKEN_URL", "https://auth.example.com/token"
+    )
+
     # OAuth Server Configuration
     OAUTH_SERVER_HOST: str = os.getenv("OAUTH_SERVER_HOST", "localhost")
     OAUTH_SERVER_PORT: int = int(os.getenv("OAUTH_SERVER_PORT", "8080"))
-    
+
     @classmethod
     def get_oauth_issuer_url(cls) -> str:
         """Get OAuth issuer URL."""
-        return os.getenv("OAUTH_ISSUER_URL", f"http://{cls.OAUTH_SERVER_HOST}:{cls.OAUTH_SERVER_PORT}")
+        return os.getenv(
+            "OAUTH_ISSUER_URL",
+            f"http://{cls.OAUTH_SERVER_HOST}:{cls.OAUTH_SERVER_PORT}",
+        )
 
     # Server Configuration
     MCP_SERVER_HOST: str = os.getenv("MCP_SERVER_HOST", "localhost")

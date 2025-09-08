@@ -7,6 +7,7 @@ This directory contains secure client implementations that demonstrate how to co
 The OpenAI client (`openai_client.py`) shows how to:
 - Authenticate with OAuth 2.1 client credentials flow
 - Connect OpenAI's chat completions API to a secure MCP backend
+- Support custom OpenAI-compatible endpoints via `OPENAI_BASE_URL`
 - Handle SSL certificate verification for HTTPS endpoints
 - Handle rate limiting and token refresh with automatic retry
 - Execute MCP tools with proper security context and scope validation
@@ -38,6 +39,7 @@ The Anthropic client (`anthropic_client.py`) provides:
 3. **Set your OpenAI API Key** in `.env`:
    ```env
    OPENAI_API_KEY=sk-your-actual-api-key-here
+   OPENAI_BASE_URL=https://your-custom-endpoint.com/v1  # Optional for custom OpenAI endpoints
    ```
 
 4. **Configure for local HTTP** (uncomment in `.env`):

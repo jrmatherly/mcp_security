@@ -73,6 +73,7 @@ cython_debug/
 .idea/
 .vscode/
 .serena/
+.claude/
 *.swp
 *.swo
 *~

@@ -77,6 +77,7 @@ task docker-up
     
 3. Edit `.env` to configure your production environment:
     - Set your API keys (OPENAI_API_KEY, ANTHROPIC_API_KEY)
+    - Configure custom OpenAI endpoint (OPENAI_BASE_URL) if needed
     - Configure JWT secrets and OAuth credentials
     - Set Redis password and other production settings
 4. Run the Docker setup:
@@ -95,6 +96,7 @@ task docker-up
 - **Client**: `src/secure_clients/openai_client.py`
 - **Task**: `task run-openai-client`
 - **Requires**: OpenAI API key (`OPENAI_API_KEY` in .env)
+- **Custom Endpoint**: Optional `OPENAI_BASE_URL` for OpenAI-compatible APIs
 - **Features**: Function calling with tool results display
 
 ### Anthropic (Claude)

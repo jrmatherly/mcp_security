@@ -2,21 +2,25 @@
 FastMCP 2.8+ compatible secure server with OAuth authentication for HTTP transport.
 """
 
+from contextlib import asynccontextmanager
+from datetime import datetime
 import logging
 import os
 import time
-from contextlib import asynccontextmanager
-from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any, Dict
 
-from fastmcp import FastMCP, Context, ToolError
+from fastmcp import FastMCP, ToolError
 from fastmcp.server.auth import BearerAuthProvider
-from fastmcp.server.dependencies import get_access_token, AccessToken
+from fastmcp.server.dependencies import AccessToken, get_access_token
 
 from config import Config
-from security.validation import SecureTicketRequest, SecureCustomerRequest, SecureCalculationRequest
-from security.rate_limiting import RateLimiter
 from security.monitoring import SecurityLogger
+from security.rate_limiting import RateLimiter
+from security.validation import (
+    SecureCalculationRequest,
+    SecureCustomerRequest,
+    SecureTicketRequest,
+)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -24,23 +28,24 @@ logger = logging.getLogger(__name__)
 rate_limiter = RateLimiter()
 security_logger = SecurityLogger()
 
+
 def load_public_key():
     """Load RSA public key for JWT verification."""
     from pathlib import Path
-    from cryptography.hazmat.primitives import serialization
-    
+
     public_key_path = Path("keys/public_key.pem")
-    
+
     if not public_key_path.exists():
         raise FileNotFoundError(
             "Public key not found. Run 'python src/generate_keys.py' or 'task generate-keys' first."
         )
-    
+
     with open(public_key_path, "rb") as f:
         public_key_pem = f.read()
-    
+
     # Convert to PEM string format that BearerAuthProvider expects
-    return public_key_pem.decode('utf-8')
+    return public_key_pem.decode("utf-8")
+
 
 # Create Bearer auth provider for FastMCP with RSA public key
 try:
@@ -48,12 +53,13 @@ try:
     auth_provider = BearerAuthProvider(
         public_key=public_key_pem,
         issuer=Config.get_oauth_issuer_url(),  # Use config for OAuth issuer URL
-        audience=None  # Allow any client_id
+        audience=None,  # Allow any client_id
     )
 except FileNotFoundError as e:
     logger.warning(f"⚠️  {e}")
     logger.warning("⚠️  Running without authentication - generate keys first!")
     auth_provider = None
+
 
 @asynccontextmanager
 async def lifespan(app):
@@ -70,13 +76,15 @@ async def lifespan(app):
 
     logger.info("🔐 Server shutdown complete")
 
+
 # Initialize FastMCP with lifespan and auth parameters
 mcp = FastMCP(
     name="Secure Customer Service",
     instructions="Demo secure MCP server with OAuth authentication. Available tools: get_customer_info, create_support_ticket, calculate_account_value",
     lifespan=lifespan,
-    auth=auth_provider
+    auth=auth_provider,
 )
+
 
 def _get_required_scopes(tool_name: str) -> list[str]:
     """Map tool names to required OAuth scopes - same as clients."""
@@ -84,33 +92,40 @@ def _get_required_scopes(tool_name: str) -> list[str]:
         "get_customer_info": ["customer:read"],
         "create_support_ticket": ["ticket:create"],
         "calculate_account_value": ["account:calculate"],
-        "get_recent_customers": ["customer:read"]
+        "get_recent_customers": ["customer:read"],
     }
     return scope_mapping.get(tool_name, [])
+
 
 async def _check_tool_permissions(tool_name: str) -> None:
     """Check if current token has required scopes for the tool."""
     try:
         # Get the validated access token from FastMCP
         access_token: AccessToken = await get_access_token()
-        
+
         # Get required scopes for this tool
         required_scopes = _get_required_scopes(tool_name)
-        
+
         # Extract scopes from token (same as clients)
-        token_scopes = getattr(access_token, 'scopes', [])
+        token_scopes = getattr(access_token, "scopes", [])
         if isinstance(token_scopes, str):
             token_scopes = token_scopes.split()
-        
+
         # Check if token has all required scopes
-        missing_scopes = [scope for scope in required_scopes if scope not in token_scopes]
-        
+        missing_scopes = [
+            scope for scope in required_scopes if scope not in token_scopes
+        ]
+
         if missing_scopes:
-            security_logger.warning(f"Access denied to {tool_name}: missing scopes {missing_scopes}")
-            raise ToolError(f"Insufficient permissions for {tool_name}. Missing scopes: {missing_scopes}")
-        
+            security_logger.warning(
+                f"Access denied to {tool_name}: missing scopes {missing_scopes}"
+            )
+            raise ToolError(
+                f"Insufficient permissions for {tool_name}. Missing scopes: {missing_scopes}"
+            )
+
         security_logger.info(f"Access granted to {tool_name}: scopes verified")
-        
+
     except Exception as e:
         # If we can't get the token or verify scopes, deny access
         security_logger.error(f"Permission check failed for {tool_name}: {e}")
@@ -129,7 +144,7 @@ async def get_customer_info(customer_id: str) -> Dict[str, Any]:
     """
     # Check permissions first (server-side scope validation)
     await _check_tool_permissions("get_customer_info")
-    
+
     try:
         request = SecureCustomerRequest(customer_id=customer_id)
         security_logger.info(f"Retrieved customer info for {request.customer_id}")
@@ -142,19 +157,17 @@ async def get_customer_info(customer_id: str) -> Dict[str, Any]:
             "last_activity": datetime.now().isoformat(),
             "contact_info": {
                 "email": f"customer{request.customer_id.lower()}@example.com",
-                "phone": "+1-555-0123"
-            }
+                "phone": "+1-555-0123",
+            },
         }
     except Exception as e:
         logger.error(f"Customer lookup failed: {e}")
         raise ValueError(f"Invalid customer request: {e}")
 
+
 @mcp.tool
 async def create_support_ticket(
-    customer_id: str,
-    subject: str,
-    description: str,
-    priority: str
+    customer_id: str, subject: str, description: str, priority: str
 ) -> Dict[str, Any]:
     """Create support ticket with validation.
 
@@ -169,17 +182,19 @@ async def create_support_ticket(
     """
     # Check permissions first (server-side scope validation)
     await _check_tool_permissions("create_support_ticket")
-    
+
     try:
         request = SecureTicketRequest(
             customer_id=customer_id,
             subject=subject,
             description=description,
-            priority=priority
+            priority=priority,
         )
 
         ticket_id = f"TKT-{int(time.time())}-{customer_id[:3]}"
-        security_logger.info(f"Created ticket {ticket_id} for customer {request.customer_id}")
+        security_logger.info(
+            f"Created ticket {ticket_id} for customer {request.customer_id}"
+        )
 
         return {
             "ticket_id": ticket_id,
@@ -189,16 +204,18 @@ async def create_support_ticket(
             "priority": request.priority,
             "status": "open",
             "created": datetime.now().isoformat(),
-            "estimated_resolution": "24-48 hours" if request.priority in ["high", "urgent"] else "2-5 business days"
+            "estimated_resolution": "24-48 hours"
+            if request.priority in ["high", "urgent"]
+            else "2-5 business days",
         }
     except Exception as e:
         logger.error(f"Ticket creation failed: {e}")
         raise ValueError(f"Invalid ticket request: {e}")
 
+
 @mcp.tool
 async def calculate_account_value(
-    customer_id: str,
-    amounts: list[float]
+    customer_id: str, amounts: list[float]
 ) -> Dict[str, Any]:
     """Calculate account value with validation.
 
@@ -211,19 +228,18 @@ async def calculate_account_value(
     """
     # Check permissions first (server-side scope validation)
     await _check_tool_permissions("calculate_account_value")
-    
+
     try:
-        request = SecureCalculationRequest(
-            customer_id=customer_id,
-            amounts=amounts
-        )
+        request = SecureCalculationRequest(customer_id=customer_id, amounts=amounts)
 
         total = sum(request.amounts)
         average = total / len(request.amounts) if request.amounts else 0
         max_amount = max(request.amounts) if request.amounts else 0
         min_amount = min(request.amounts) if request.amounts else 0
 
-        security_logger.info(f"Calculated account value for customer {request.customer_id}")
+        security_logger.info(
+            f"Calculated account value for customer {request.customer_id}"
+        )
 
         return {
             "customer_id": request.customer_id,
@@ -233,14 +249,19 @@ async def calculate_account_value(
                 "count": len(request.amounts),
                 "max_purchase": round(max_amount, 2),
                 "min_purchase": round(min_amount, 2),
-                "amounts": request.amounts
+                "amounts": request.amounts,
             },
-            "account_tier": "gold" if total > 50000 else "silver" if total > 10000 else "bronze",
-            "calculated_at": datetime.now().isoformat()
+            "account_tier": "gold"
+            if total > 50000
+            else "silver"
+            if total > 10000
+            else "bronze",
+            "calculated_at": datetime.now().isoformat(),
         }
     except Exception as e:
         logger.error(f"Calculation failed: {e}")
         raise ValueError(f"Invalid calculation request: {e}")
+
 
 @mcp.resource("health://status")
 async def health_check() -> Dict[str, Any]:
@@ -249,8 +270,14 @@ async def health_check() -> Dict[str, Any]:
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "version": "1.0.0",
-        "features": ["oauth_auth", "input_validation", "security_logging", "rate_limiting"]
+        "features": [
+            "oauth_auth",
+            "input_validation",
+            "security_logging",
+            "rate_limiting",
+        ],
     }
+
 
 @mcp.resource("security://events")
 async def get_security_events() -> Dict[str, Any]:
@@ -258,13 +285,9 @@ async def get_security_events() -> Dict[str, Any]:
     return {
         "total_events": 0,
         "recent_events": [],
-        "summary": {
-            "errors": 0,
-            "warnings": 0,
-            "info": 0
-        },
+        "summary": {"errors": 0, "warnings": 0, "info": 0},
         "monitoring_status": "active",
-        "retrieved_at": datetime.now().isoformat()
+        "retrieved_at": datetime.now().isoformat(),
     }
 
 
