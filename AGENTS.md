@@ -294,16 +294,14 @@ OPENAI_API_KEY=your_openai_key_here
 ANTHROPIC_API_KEY=your_anthropic_key_here
 OPENAI_BASE_URL=https://api.openai.com/v1  # Optional: custom OpenAI endpoint
 
-# OAuth 2.1 Configuration
-OAUTH_CLIENT_ID=demo_client_id
-OAUTH_CLIENT_SECRET=demo_client_secret
-JWT_SECRET_KEY=your_jwt_secret_here
+# Azure OAuth Proxy Configuration (REQUIRED)
+AZURE_TENANT_ID=your-azure-tenant-id
+AZURE_CLIENT_ID=your-azure-client-id
+AZURE_CLIENT_SECRET=your-azure-client-secret
 
 # Server Configuration  
-OAUTH_HOST=localhost
-OAUTH_PORT=8080
-MCP_HOST=localhost
-MCP_PORT=8000
+MCP_SERVER_HOST=localhost
+MCP_SERVER_PORT=8000
 
 # Redis Configuration (for rate limiting)
 REDIS_URL=redis://localhost:6379
@@ -314,8 +312,8 @@ TLS_KEY_PATH=./certificates/key.pem
 ```
 
 ### Development vs Production
-- **Development**: HTTP endpoints (localhost:8080/8000) with self-signed certificates
-- **Production**: HTTPS via nginx (localhost:8443/8001) with proper certificate management
+- **Development**: HTTP MCP server (localhost:8000) with Azure OAuth Proxy
+- **Production**: HTTPS via nginx (localhost:8001) with Azure OAuth Proxy and certificate management
 
 ### Dependencies Management
 - **Poetry**: Primary dependency management (`pyproject.toml`)
@@ -323,12 +321,12 @@ TLS_KEY_PATH=./certificates/key.pem
 - **Virtual Environment**: Poetry manages `.venv/` automatically
 - **Lock File**: `poetry.lock` ensures reproducible builds
 
-### Current Package Versions (Post-Remediation September 2024)
-- **fastmcp**: 2.12.2 (Latest - with JWTVerifier authentication)
+### Current Package Versions (Post-OAuth Proxy Migration September 2025)
+- **fastmcp**: 2.12.2 (Latest - with OAuth Proxy support)
 - **uvicorn**: 0.35.0 (Latest - with WebSocketsSansIOProtocol support)
 - **mcp**: 1.13.1 (Latest MCP SDK)
 - **fastapi**: 0.115.13+ (Web framework)
-- **Authentication**: JWTVerifier (BearerAuthProvider deprecated and migrated)
+- **Authentication**: OAuth Proxy with Azure Entra ID (Local OAuth server deprecated)
 
 ### Hybrid uv + Poetry Setup (Optional)
 If you encounter environment issues:
