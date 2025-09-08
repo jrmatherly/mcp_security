@@ -351,14 +351,14 @@ MCP_SERVER_PORT=8000
 # Development: http://localhost:8000
 # Docker/nginx: https://localhost:8443
 # Production: https://api.yourdomain.com
-MCP_BASE_URL=http://localhost:8000
+FASTMCP_SERVER_AUTH_AZURE_BASE_URL=http://localhost:8000
 
 # Redis (optional)
 REDIS_URL=redis://localhost:6379
 
 # Note: OAuth is handled via Azure OAuth Proxy embedded in the MCP server
-# The OAuth token endpoint is automatically available at: {MCP_BASE_URL}/oauth/token
-# The MCP API endpoint is available at: {MCP_BASE_URL}/mcp
+# The OAuth token endpoint is automatically available at: {FASTMCP_SERVER_AUTH_AZURE_BASE_URL}/token
+# The MCP API endpoint is available at: {FASTMCP_SERVER_AUTH_AZURE_BASE_URL}/mcp
 ```
 
 ## Next Steps

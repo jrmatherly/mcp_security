@@ -308,7 +308,7 @@ MCP_SERVER_PORT=8000
 # Development: http://localhost:8000
 # Docker/nginx: https://localhost:8443  
 # Production: https://api.yourdomain.com
-MCP_BASE_URL=http://localhost:8000
+FASTMCP_SERVER_AUTH_AZURE_BASE_URL=http://localhost:8000
 
 # Redis Configuration (for rate limiting)
 REDIS_URL=redis://localhost:6379

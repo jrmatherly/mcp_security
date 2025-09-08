@@ -11,11 +11,11 @@ from typing import Any, Dict
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
-from fastmcp.server.auth import OAuthProxy
-from fastmcp.server.auth.providers.jwt import JWTVerifier
+from fastmcp.server.auth.providers.azure import AzureProvider
 from fastmcp.server.dependencies import AccessToken, get_access_token
 
 from config import Config
+from security.jwt_verifier import azure_jwt_verifier
 from security.monitoring import SecurityLogger
 from security.rate_limiting import RateLimiter
 from security.validation import (
@@ -31,8 +31,8 @@ rate_limiter = RateLimiter()
 security_logger = SecurityLogger()
 
 
-def create_oauth_proxy_auth():
-    """Create OAuth Proxy for Azure authentication."""
+def create_azure_auth_provider():
+    """Create Azure OAuth Provider using FastMCP's native Azure integration."""
     # Get Azure configuration from environment
     tenant_id = os.environ.get("AZURE_TENANT_ID")
     client_id = os.environ.get("AZURE_CLIENT_ID")
@@ -43,28 +43,20 @@ def create_oauth_proxy_auth():
             "Missing Azure configuration. Please set AZURE_TENANT_ID, AZURE_CLIENT_ID, and AZURE_CLIENT_SECRET"
         )
 
-    # JWT verifier for Azure tokens
-    token_verifier = JWTVerifier(
-        jwks_uri=f"https://login.microsoftonline.com/{tenant_id}/discovery/v2.0/keys",
-        issuer=f"https://login.microsoftonline.com/{tenant_id}/v2.0",
-        audience=client_id,
-    )
-
-    # OAuth Proxy for Azure (non-DCR provider)
-    return OAuthProxy(
-        upstream_authorization_endpoint=f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize",
-        upstream_token_endpoint=f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token",
-        upstream_client_id=client_id,
-        upstream_client_secret=client_secret,
-        token_verifier=token_verifier,
-        base_url=Config.MCP_BASE_URL,  # Use dynamic base URL from config
+    # Use FastMCP's native Azure provider
+    return AzureProvider(
+        client_id=client_id,
+        client_secret=client_secret,
+        tenant_id=tenant_id,
+        base_url=Config.AZURE_BASE_URL,
+        required_scopes=Config.AZURE_DEFAULT_SCOPES,
     )
 
 
-# Create OAuth Proxy for Azure authentication
+# Create Azure OAuth Provider for authentication
 try:
-    auth_provider = create_oauth_proxy_auth()
-    logger.info("✅ OAuth Proxy configured for Azure Entra ID")
+    auth_provider = create_azure_auth_provider()
+    logger.info("✅ Azure OAuth Provider configured for Entra ID")
 except ValueError as e:
     logger.warning(f"⚠️  {e}")
     logger.warning(
@@ -72,7 +64,7 @@ except ValueError as e:
     )
     auth_provider = None
 except Exception as e:
-    logger.error(f"❌ Failed to configure OAuth Proxy: {e}")
+    logger.error(f"❌ Failed to configure Azure OAuth Provider: {e}")
     auth_provider = None
 
 
@@ -81,10 +73,19 @@ async def lifespan(app):
     """Lifespan handler - replaces @mcp.on_event()"""
     logger.info("🔐 Starting secure MCP server with OAuth...")
 
-    # Set demo JWT secret if not provided
+    # Validate Azure configuration on startup
+    try:
+        Config.validate_azure_config()
+        logger.info("✅ Azure OAuth configuration validated")
+    except ValueError as e:
+        logger.warning(f"⚠️  Azure configuration issue: {e}")
+
+    # Set demo JWT secret if not provided (deprecated for OAuth Proxy)
     if not os.environ.get("JWT_SECRET_KEY"):
         os.environ["JWT_SECRET_KEY"] = "demo-secret-change-in-production"
-        logger.warning("⚠️  Using demo JWT secret!")
+        logger.warning(
+            "⚠️  JWT_SECRET_KEY not set - OAuth Proxy handles token verification"
+        )
 
     logger.info("✅ Server startup complete")
     yield  # Server runs here
@@ -113,18 +114,37 @@ def _get_required_scopes(tool_name: str) -> list[str]:
 
 
 async def _check_tool_permissions(tool_name: str) -> None:
-    """Check if current token has required scopes for the tool."""
+    """Check if current token has required scopes for the tool with enhanced validation."""
     try:
         # Get the validated access token from FastMCP
         access_token: AccessToken = await get_access_token()
 
+        # Enhanced token validation
+        if not access_token:
+            security_logger.error(f"No access token found for {tool_name}")
+            raise ToolError(f"Authentication required for {tool_name}")
+
         # Get required scopes for this tool
         required_scopes = _get_required_scopes(tool_name)
 
-        # Extract scopes from token (same as clients)
+        # Extract scopes from token with enhanced parsing
         token_scopes = getattr(access_token, "scopes", [])
         if isinstance(token_scopes, str):
             token_scopes = token_scopes.split()
+
+        # Log token information for debugging (excluding sensitive data)
+        security_logger.debug(
+            f"Token scopes for {tool_name}: {len(token_scopes)} scopes present"
+        )
+
+        # Check token expiration if available
+        if hasattr(access_token, "expires_at"):
+            current_time = time.time()
+            if access_token.expires_at and current_time > access_token.expires_at:
+                security_logger.warning(f"Expired token used for {tool_name}")
+                raise ToolError(
+                    f"Token expired for {tool_name}. Please re-authenticate."
+                )
 
         # Check if token has all required scopes
         missing_scopes = [
@@ -139,12 +159,24 @@ async def _check_tool_permissions(tool_name: str) -> None:
                 f"Insufficient permissions for {tool_name}. Missing scopes: {missing_scopes}"
             )
 
-        security_logger.info(f"Access granted to {tool_name}: scopes verified")
+        # Log successful permission check
+        security_logger.info(
+            f"Access granted to {tool_name}: {len(required_scopes)} scopes verified"
+        )
 
+        # Additional rate limiting check
+        user_id = str(getattr(access_token, "sub", "unknown"))
+        await rate_limiter.check_limits(user_id)
+
+    except ToolError:
+        # Re-raise ToolError as-is
+        raise
     except Exception as e:
         # If we can't get the token or verify scopes, deny access
         security_logger.error(f"Permission check failed for {tool_name}: {e}")
-        raise ToolError(f"Permission verification failed for {tool_name}")
+        raise ToolError(
+            f"Permission verification failed for {tool_name}: Authentication error"
+        )
 
 
 @mcp.tool
@@ -295,13 +327,53 @@ async def health_check() -> Dict[str, Any]:
     }
 
 
-# Add HTTP health endpoint for client checking
-async def http_health() -> Dict[str, Any]:
-    """HTTP health endpoint for client connectivity checks."""
+# Server health resource (FastMCP 2.8+ pattern)
+@mcp.resource("server://health")
+async def server_health() -> Dict[str, Any]:
+    """Server health check resource for client connectivity."""
     return {
         "status": "healthy",
         "authentication": "azure_oauth_proxy",
+        "oauth_endpoints": {
+            "authorization": "/auth/authorize",
+            "token": "/auth/token",
+            "callback": "/auth/callback",
+            "userinfo": "/auth/userinfo",
+        },
+        "azure_config": {
+            "tenant_id": os.environ.get("AZURE_TENANT_ID", "<not_configured>"),
+            "client_id": os.environ.get("AZURE_CLIENT_ID", "<not_configured>"),
+            "base_url": Config.AZURE_BASE_URL,
+        },
         "timestamp": datetime.now().isoformat(),
+    }
+
+
+@mcp.resource("oauth://config")
+async def oauth_info() -> Dict[str, Any]:
+    """OAuth configuration information resource."""
+    tenant_id = os.environ.get("AZURE_TENANT_ID")
+    if not tenant_id:
+        return {"error": "Azure configuration not found"}
+
+    return {
+        "provider": "Microsoft Azure (Entra ID)",
+        "authorization_endpoint": f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize",
+        "token_endpoint": f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token",
+        "jwks_uri": f"https://login.microsoftonline.com/{tenant_id}/discovery/v2.0/keys",
+        "issuer": f"https://login.microsoftonline.com/{tenant_id}/v2.0",
+        "scopes_supported": [
+            "https://graph.microsoft.com/.default",
+            "User.Read",
+            "email",
+            "openid",
+            "profile",
+        ],
+        "response_types_supported": ["code"],
+        "response_modes_supported": ["query"],
+        "grant_types_supported": ["authorization_code", "client_credentials"],
+        "token_endpoint_auth_methods_supported": ["client_secret_post"],
+        "pkce_required": True,
     }
 
 
@@ -315,6 +387,62 @@ async def get_security_events() -> Dict[str, Any]:
         "monitoring_status": "active",
         "retrieved_at": datetime.now().isoformat(),
     }
+
+
+@mcp.tool
+async def validate_token() -> Dict[str, Any]:
+    """Validate current OAuth token and return user information.
+
+    Returns:
+        Token validation status and user information
+    """
+    try:
+        # Get current access token
+        access_token: AccessToken = await get_access_token()
+
+        if not access_token:
+            return {
+                "valid": False,
+                "error": "No access token found",
+                "timestamp": datetime.now().isoformat(),
+            }
+
+        # Extract token string (assuming access_token has a token attribute)
+        token_string = getattr(access_token, "token", str(access_token))
+
+        # Use enhanced JWT verifier for additional validation
+        try:
+            decoded_token = await azure_jwt_verifier.verify_azure_token(token_string)
+            user_info = await azure_jwt_verifier.extract_user_info(decoded_token)
+
+            return {
+                "valid": True,
+                "user_info": user_info,
+                "token_claims": {
+                    "issuer": decoded_token.get("iss"),
+                    "audience": decoded_token.get("aud"),
+                    "expires_at": decoded_token.get("exp"),
+                    "issued_at": decoded_token.get("iat"),
+                    "not_before": decoded_token.get("nbf"),
+                },
+                "validation_timestamp": datetime.now().isoformat(),
+            }
+
+        except Exception as verification_error:
+            security_logger.warning(f"Token verification failed: {verification_error}")
+            return {
+                "valid": False,
+                "error": f"Token verification failed: {str(verification_error)}",
+                "timestamp": datetime.now().isoformat(),
+            }
+
+    except Exception as e:
+        security_logger.error(f"Token validation error: {e}")
+        return {
+            "valid": False,
+            "error": f"Validation error: {str(e)}",
+            "timestamp": datetime.now().isoformat(),
+        }
 
 
 if __name__ == "__main__":

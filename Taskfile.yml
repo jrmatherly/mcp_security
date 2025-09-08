@@ -48,7 +48,7 @@ tasks:
   run-litellm-client:
     desc: "Run the secure LiteLLM MCP client demo"
     cmds:
-      - poetry run python src/secure_clients/litellm_client.py
+      - poetry run python src/secure_clients/litellm_client_fastmcp.py
 
   test:
     desc: "Run all tests"
