@@ -108,6 +108,24 @@ from security.auth import authenticate_user
 - Secrets stored in `.env` file (never committed to version control)
 - Default values provided for development environment
 
+### Code Quality Configuration (pyproject.toml)
+```toml
+[tool.black]
+line-length = 88
+target-version = ['py312']
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+ignore = ["E501"]  # Allow long lines (handled by Black)
+
+[tool.ruff.lint.isort]
+known-first-party = ["config", "security"]
+force-sort-within-sections = true
+```
+
 ## Testing
 
 ### Testing Framework & Patterns
@@ -321,13 +339,13 @@ rm -rf .venv && uv venv .venv --python 3.12.11 && poetry env use .venv/bin/pytho
 
 **When performing multiple operations, send all tool calls (including Task calls for agent delegation) in a single message to execute them concurrently for optimal performance.**
 
-#### Why Agent Delegation Matters:
+#### Why Agent Delegation Matters
 - Specialists have deeper security knowledge and awareness of attack vectors
 - They understand subtle security bugs and enterprise patterns  
 - They follow established security frameworks and compliance requirements
 - They can provide more comprehensive threat modeling
 
-#### Key Principles:
+#### Key Principles
 - **Security-First Delegation**: Always use security experts for authentication, validation, and threat analysis
 - **Complex Security Problems**: Delegate to security specialists, use diagnostic agents for vulnerability assessment
 - **Multiple Security Domains**: Send multiple Task tool calls in a single message to security specialists in parallel

@@ -7,12 +7,16 @@ tasks:
       - task --list
 
   setup:
-    desc: "Set up the Python environment"
+    desc: "Set up the Python environment using uv + Poetry hybrid approach"
     cmds:
-      - pyenv install -s 3.12.11
-      - pyenv local 3.12.11
-      - poetry install
+      - echo "Creating virtual environment with uv..."
+      - uv venv .venv --python 3.12.11
+      - echo "Configuring Poetry to use .venv..."
+      - poetry env use .venv/bin/python
       - poetry config virtualenvs.in-project true
+      - echo "Installing dependencies with Poetry..."
+      - poetry install
+      - echo "✅ Setup complete! Virtual environment ready at .venv/"
 
   generate-keys:
     desc: "Generate RSA key pair for OAuth JWT signing"
@@ -77,6 +81,18 @@ tasks:
       - rm -rf .pytest_cache
       - rm -rf .ruff_cache
       - rm -rf security_logs/
+
+  clean-env:
+    desc: "Clean virtual environment (use before setup if environment is corrupted)"
+    cmds:
+      - rm -rf .venv
+      - echo "✅ Virtual environment removed. Run 'task setup' to recreate."
+
+  setup-fresh:
+    desc: "Clean environment and set up from scratch"
+    deps: [clean-env]
+    cmds:
+      - task: setup
 
   generate-certs:
     desc: "Generate self-signed certificates for development"
