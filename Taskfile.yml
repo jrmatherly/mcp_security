@@ -100,6 +100,7 @@ tasks:
       - mkdir -p certificates
       - openssl req -x509 -newkey rsa:4096 -keyout certificates/server.key -out certificates/server.crt -days 365 -nodes -subj "/CN=localhost"
       - chmod 600 certificates/server.key
+      - chmod 644 certificates/server.crt
 
   generate-trusted-certs:
     desc: "Generate locally-trusted certificates using mkcert"

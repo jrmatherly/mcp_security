@@ -9,8 +9,9 @@ import os
 import time
 from typing import Any, Dict
 
-from fastmcp import FastMCP, ToolError
-from fastmcp.server.auth import BearerAuthProvider
+from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
+from fastmcp.server.auth.providers.jwt import JWTVerifier
 from fastmcp.server.dependencies import AccessToken, get_access_token
 
 from config import Config
@@ -43,14 +44,14 @@ def load_public_key():
     with open(public_key_path, "rb") as f:
         public_key_pem = f.read()
 
-    # Convert to PEM string format that BearerAuthProvider expects
+    # Convert to PEM string format that JWTVerifier expects
     return public_key_pem.decode("utf-8")
 
 
-# Create Bearer auth provider for FastMCP with RSA public key
+# Create JWT verifier for FastMCP with RSA public key
 try:
     public_key_pem = load_public_key()
-    auth_provider = BearerAuthProvider(
+    auth_provider = JWTVerifier(
         public_key=public_key_pem,
         issuer=Config.get_oauth_issuer_url(),  # Use config for OAuth issuer URL
         audience=None,  # Allow any client_id

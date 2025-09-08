@@ -747,7 +747,7 @@ from typing import Dict, Any
 
 from dotenv import load_dotenv
 from mcp import McpServer
-from mcp.auth import BearerAuthProvider
+from fastmcp.server.auth.providers.jwt import JWTVerifier
 from mcp.server.streamable_http import create_http_server
 
 # Import our security modules
@@ -785,7 +785,7 @@ def load_public_key():
 # Initialize auth provider
 try:
     public_key_pem = load_public_key()
-    auth_provider = BearerAuthProvider(
+    auth_provider = JWTVerifier(
         public_key=public_key_pem,
         issuer=Config.get_oauth_issuer_url(),
         audience=None  # Allow any client_id
