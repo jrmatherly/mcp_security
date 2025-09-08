@@ -117,18 +117,21 @@ task docker-up
 - **Client**: `src/secure_clients/langchain_client.py`
 - **Task**: `task run-langchain-client`
 - **Requires**: OpenAI API key (uses GPT-4 as the underlying LLM)
+- **Custom Endpoint**: Optional `OPENAI_BASE_URL` for OpenAI-compatible APIs
 - **Features**: ReAct agent with secure MCP tool integration and OAuth authentication
 
 ### DSPy (Multi-Provider)
 - **Client**: `src/secure_clients/dspy_client.py`
 - **Task**: `task run-dspy-client`
 - **Requires**: OpenAI or Anthropic API key (configurable via LLM_PROVIDER)
+- **Custom Endpoint**: Optional `OPENAI_BASE_URL` for OpenAI-compatible APIs
 - **Features**: DSPy ReAct agent with OAuth 2.1 and TLS security
 
 ### LiteLLM (Multi-Provider)
 - **Client**: `src/secure_clients/litellm_client.py`
 - **Task**: `task run-litellm-client`
 - **Requires**: OpenAI or Anthropic API key (configurable via LLM_PROVIDER)
+- **Custom Endpoint**: Optional `OPENAI_BASE_URL` for OpenAI-compatible APIs
 - **Features**: LiteLLM integration with OAuth 2.1 authentication and JWT signature verification
 
 ## Project Structure

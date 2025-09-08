@@ -38,6 +38,16 @@ class LiteLLMMCPClient:
         self.tools = []
         self.exit_stack = AsyncExitStack()
 
+        # Configure LiteLLM for custom OpenAI endpoints
+        if Config.LLM_PROVIDER == "openai":
+            if Config.OPENAI_BASE_URL:
+                os.environ["OPENAI_API_BASE"] = Config.OPENAI_BASE_URL
+                print(
+                    f"🔧 LiteLLM configured for custom OpenAI endpoint: {Config.OPENAI_BASE_URL}"
+                )
+            if Config.OPENAI_API_KEY:
+                os.environ["OPENAI_API_KEY"] = Config.OPENAI_API_KEY
+
         # Configure secure HTTP client with TLS verification
         ca_cert_path = oauth_config.get("ca_cert_path", None)
 
