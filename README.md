@@ -66,7 +66,6 @@ task docker-up
     ```bash
     task setup           # Install Python dependencies  
     task generate-certs  # Generate self-signed certificates
-    # Note: generate-keys deprecated - OAuth Proxy uses Azure JWKS
     ```
 
 ### Docker Setup (Production)
@@ -89,7 +88,6 @@ task docker-up
     task generate-certs  # Generate self-signed certificates
     task docker-build    # Build Docker images
     task docker-up       # Start all services with TLS
-    # Note: generate-keys deprecated - OAuth Proxy uses Azure JWKS
     ```
 
 ## Technology Stack
@@ -179,7 +177,6 @@ task docker-up
 │   ├── config.py                    # Security and LLM configuration
 │   ├── main.py                      # Secure MCP server with OAuth Proxy
 │   ├── secure_server.py             # Production-ready secure server
-│   ├── oauth_server.py.deprecated   # [DEPRECATED] Local OAuth server
 │   ├── secure_clients/
 │   │   ├── __init__.py
 │   │   ├── openai_client.py         # ✅ Secure OpenAI GPT-4 client
@@ -370,7 +367,6 @@ task docker-shell-mcp
 
 ### Core Tasks
 - `task setup` - Set up Python environment and install dependencies
-- `task generate-keys` - [DEPRECATED] Generate RSA key pair (not needed with OAuth Proxy)
 - `task generate-certs` - Generate self-signed certificates
 - `task test` - Run all pytest tests
 - `task format` - Format code with Black and Ruff
@@ -378,7 +374,6 @@ task docker-shell-mcp
 
 ### Development Mode Tasks
 - `task run-server` - Run MCP server with Azure OAuth Proxy (HTTP transport)
-- `task run-oauth` - [DEPRECATED] Run OAuth server (replaced by Azure OAuth Proxy)
 - `task run-openai-client` - Run OpenAI client (connects to OAuth Proxy)
 - `task run-anthropic-client` - Run Anthropic Claude client (connects to OAuth Proxy)
 - `task run-langchain-client` - Run LangChain ReAct agent client (connects to OAuth Proxy)
