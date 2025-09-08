@@ -324,6 +324,13 @@ TLS_KEY_PATH=./certificates/key.pem
 - **Virtual Environment**: Poetry manages `.venv/` automatically
 - **Lock File**: `poetry.lock` ensures reproducible builds
 
+### Current Package Versions (Post-Remediation September 2024)
+- **fastmcp**: 2.12.2 (Latest - with JWTVerifier authentication)
+- **uvicorn**: 0.35.0 (Latest - with WebSocketsSansIOProtocol support)
+- **mcp**: 1.13.1 (Latest MCP SDK)
+- **fastapi**: 0.115.13+ (Web framework)
+- **Authentication**: JWTVerifier (BearerAuthProvider deprecated and migrated)
+
 ### Hybrid uv + Poetry Setup (Optional)
 If you encounter environment issues:
 ```bash

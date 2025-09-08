@@ -89,6 +89,38 @@ task docker-up
     task docker-up       # Start all services with TLS
     ```
 
+## Technology Stack
+
+**Current Versions (Post-Deprecation Remediation - September 2024)**:
+
+### Core Framework
+- **Python**: 3.12.11 (managed via pyenv)
+- **FastMCP**: 2.12.2 (Latest MCP server framework with JWTVerifier authentication)
+- **MCP SDK**: 1.13.1 (Latest Model Context Protocol SDK)
+- **uvicorn**: 0.35.0 (Latest ASGI server with WebSocketsSansIOProtocol support)
+- **FastAPI**: 0.115.13+ (High-performance web framework)
+
+### Security & Authentication
+- **Authentication**: JWTVerifier (migrated from deprecated BearerAuthProvider)
+- **OAuth**: 2.1 with PKCE flow
+- **Encryption**: RS256 JWT signatures, TLS 1.3
+- **Input Validation**: Pydantic 2.11.5+ with custom security validators
+- **Rate Limiting**: Redis-based with configurable thresholds
+
+### AI Platform Support
+- **OpenAI**: 1.86.0+ (with agents support)
+- **Anthropic**: 0.54.0+ (Claude integration)
+- **LangChain**: 0.3.0+ with MCP adapters
+- **DSPy**: 2.6.27+ (structured prompting)
+- **LiteLLM**: 1.72.4+ (multi-provider proxy)
+
+### Development & Deployment
+- **Task Runner**: Go Task (Taskfile.yml)
+- **Dependency Management**: Poetry with uv virtual environments
+- **Code Quality**: Black, Ruff, pytest with asyncio
+- **Containerization**: Docker with nginx TLS termination
+- **Database**: Redis 5.0.0+ (rate limiting and caching)
+
 ## Supported LLM Providers
 
 ### OpenAI
