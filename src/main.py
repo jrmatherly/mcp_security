@@ -57,7 +57,7 @@ def create_oauth_proxy_auth():
         upstream_client_id=client_id,
         upstream_client_secret=client_secret,
         token_verifier=token_verifier,
-        base_url="http://localhost:8000",
+        base_url=Config.MCP_BASE_URL,  # Use dynamic base URL from config
     )
 
 

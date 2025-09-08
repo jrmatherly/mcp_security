@@ -491,16 +491,13 @@ async def main():
         print("   Please set it in .env file or as environment variable")
         return
 
-    # OAuth configuration - use environment settings
-    # OAuth configuration for Azure OAuth Proxy
+    # OAuth configuration - using dynamic URLs from Config
     oauth_config = {
-        "token_url": "https://localhost:8443/token",  # Azure OAuth Proxy endpoint
+        "token_url": Config.get_oauth_token_url(),  # Dynamically constructed OAuth endpoint
         "client_id": "openai-mcp-client",
         "client_secret": "openai-client-secret",
         "scopes": "customer:read ticket:create account:calculate",
-        "mcp_server_url": os.environ.get(
-            "MCP_SERVER_URL", "https://localhost:8001/mcp/"
-        ),
+        "mcp_server_url": Config.get_mcp_server_url(),  # Dynamically constructed MCP endpoint
         "ca_cert_path": os.environ.get("TLS_CA_CERT_PATH", None),
     }
 

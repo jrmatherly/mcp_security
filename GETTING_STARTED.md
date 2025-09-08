@@ -346,11 +346,19 @@ ANTHROPIC_API_KEY=sk-ant-...
 MCP_SERVER_HOST=localhost
 MCP_SERVER_PORT=8000
 
+# MCP Base URL Configuration
+# This configures the base URL for OAuth and API endpoints
+# Development: http://localhost:8000
+# Docker/nginx: https://localhost:8443
+# Production: https://api.yourdomain.com
+MCP_BASE_URL=http://localhost:8000
+
 # Redis (optional)
 REDIS_URL=redis://localhost:6379
 
-# Note: OAuth variables removed - server now uses Azure OAuth Proxy
-# See Azure configuration above for authentication setup
+# Note: OAuth is handled via Azure OAuth Proxy embedded in the MCP server
+# The OAuth token endpoint is automatically available at: {MCP_BASE_URL}/oauth/token
+# The MCP API endpoint is available at: {MCP_BASE_URL}/mcp
 ```
 
 ## Next Steps

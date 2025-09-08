@@ -40,6 +40,22 @@ class Config:
     MCP_SERVER_PORT: int = int(os.getenv("MCP_SERVER_PORT", "8000"))
     FORCE_HTTPS: bool = os.getenv("FORCE_HTTPS", "true").lower() == "true"
 
+    # Base URL Configuration for OAuth and API endpoints
+    # Development: http://localhost:8000
+    # Production: https://api.example.com
+    # Docker/nginx: https://localhost:8443
+    MCP_BASE_URL: str = os.getenv("MCP_BASE_URL", "http://localhost:8000")
+
+    @classmethod
+    def get_oauth_token_url(cls) -> str:
+        """Get OAuth token endpoint URL."""
+        return f"{cls.MCP_BASE_URL}/oauth/token"
+
+    @classmethod
+    def get_mcp_server_url(cls) -> str:
+        """Get MCP server endpoint URL."""
+        return f"{cls.MCP_BASE_URL}/mcp"
+
     # Rate Limiting
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
     RATE_LIMIT_REQUESTS_PER_MINUTE: int = int(

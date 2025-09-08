@@ -303,6 +303,13 @@ AZURE_CLIENT_SECRET=your-azure-client-secret
 MCP_SERVER_HOST=localhost
 MCP_SERVER_PORT=8000
 
+# MCP Base URL Configuration
+# This sets the base URL for OAuth and API endpoints
+# Development: http://localhost:8000
+# Docker/nginx: https://localhost:8443  
+# Production: https://api.yourdomain.com
+MCP_BASE_URL=http://localhost:8000
+
 # Redis Configuration (for rate limiting)
 REDIS_URL=redis://localhost:6379
 
