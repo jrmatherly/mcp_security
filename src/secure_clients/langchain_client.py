@@ -395,10 +395,11 @@ async def main():
     print("=" * 50)
 
     # Load configuration from environment variables
+    # OAuth configuration for Azure OAuth Proxy
     oauth_config = {
-        "token_url": os.environ.get("OAUTH_TOKEN_URL", "http://localhost:8080/token"),
-        "client_id": os.environ.get("OAUTH_CLIENT_ID", "mcp-secure-client"),
-        "client_secret": os.environ.get("OAUTH_CLIENT_SECRET", "secure-client-secret"),
+        "token_url": "https://localhost:8443/token",  # Azure OAuth Proxy endpoint
+        "client_id": "mcp-secure-client",
+        "client_secret": "secure-client-secret",
         "scopes": "customer:read ticket:create account:calculate",
         "mcp_server_url": os.environ.get("MCP_SERVER_URL", "http://localhost:8000/mcp"),
         "ca_cert_path": os.environ.get("TLS_CA_CERT_PATH", None),

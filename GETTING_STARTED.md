@@ -342,28 +342,15 @@ OPENAI_API_KEY=sk-...
 OPENAI_BASE_URL=https://your-openai-compatible-endpoint.com/v1  # Optional custom endpoint
 ANTHROPIC_API_KEY=sk-ant-...
 
-# OAuth Configuration  
-OAUTH_CLIENT_ID=mcp-secure-client
-OAUTH_CLIENT_SECRET=your-secure-secret
-JWT_SECRET_KEY=your-jwt-secret
-
 # Server Configuration
 MCP_SERVER_HOST=localhost
 MCP_SERVER_PORT=8000
-OAUTH_SERVER_HOST=localhost
-OAUTH_SERVER_PORT=8080
 
 # Redis (optional)
 REDIS_URL=redis://localhost:6379
 
-# Development vs Production URLs
-# Development (HTTP):
-OAUTH_TOKEN_URL=http://localhost:8080/token
-MCP_SERVER_URL=http://localhost:8000/mcp
-
-# Production (HTTPS):
-OAUTH_TOKEN_URL=https://localhost:8443/token
-MCP_SERVER_URL=https://localhost:8001/mcp
+# Note: OAuth variables removed - server now uses Azure OAuth Proxy
+# See Azure configuration above for authentication setup
 ```
 
 ## Next Steps

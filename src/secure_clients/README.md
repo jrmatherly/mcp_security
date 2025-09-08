@@ -44,7 +44,7 @@ The Anthropic client (`anthropic_client.py`) provides:
 
 4. **Configure for local HTTP** (uncomment in `.env`):
    ```env
-   OAUTH_TOKEN_URL=http://localhost:8080/token
+   # OAuth variables removed - server now uses Azure OAuth Proxy
    MCP_SERVER_URL=http://localhost:8000/mcp
    ```
 
@@ -77,7 +77,7 @@ python src/secure_clients/anthropic_client.py
 
 3. **Configure for Docker HTTPS** (default in `.env`):
    ```env
-   OAUTH_TOKEN_URL=https://localhost:8443/token
+   # OAuth variables removed - server now uses Azure OAuth Proxy  
    MCP_SERVER_URL=https://localhost:8001/mcp/
    ```
 

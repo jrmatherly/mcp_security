@@ -492,10 +492,11 @@ async def main():
         return
 
     # OAuth configuration - use environment settings
+    # OAuth configuration for Azure OAuth Proxy
     oauth_config = {
-        "token_url": os.environ.get("OAUTH_TOKEN_URL", "https://localhost:8443/token"),
-        "client_id": os.environ.get("OAUTH_CLIENT_ID", "openai-mcp-client"),
-        "client_secret": os.environ.get("OAUTH_CLIENT_SECRET", "openai-client-secret"),
+        "token_url": "https://localhost:8443/token",  # Azure OAuth Proxy endpoint
+        "client_id": "openai-mcp-client",
+        "client_secret": "openai-client-secret",
         "scopes": "customer:read ticket:create account:calculate",
         "mcp_server_url": os.environ.get(
             "MCP_SERVER_URL", "https://localhost:8001/mcp/"

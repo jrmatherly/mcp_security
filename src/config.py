@@ -33,28 +33,7 @@ class Config:
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "gemma3:27b")
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
-    # Security Configuration
-    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "change-this-secret-key")
-    OAUTH_CLIENT_ID: str = os.getenv("OAUTH_CLIENT_ID", "mcp-secure-client")
-    OAUTH_CLIENT_SECRET: str = os.getenv("OAUTH_CLIENT_SECRET", "client-secret")
-    OAUTH_AUTH_URL: str = os.getenv(
-        "OAUTH_AUTH_URL", "https://auth.example.com/authorize"
-    )
-    OAUTH_TOKEN_URL: str = os.getenv(
-        "OAUTH_TOKEN_URL", "https://auth.example.com/token"
-    )
-
-    # OAuth Server Configuration
-    OAUTH_SERVER_HOST: str = os.getenv("OAUTH_SERVER_HOST", "localhost")
-    OAUTH_SERVER_PORT: int = int(os.getenv("OAUTH_SERVER_PORT", "8080"))
-
-    @classmethod
-    def get_oauth_issuer_url(cls) -> str:
-        """Get OAuth issuer URL."""
-        return os.getenv(
-            "OAUTH_ISSUER_URL",
-            f"http://{cls.OAUTH_SERVER_HOST}:{cls.OAUTH_SERVER_PORT}",
-        )
+    # Note: OAuth Server variables removed - server now uses Azure OAuth Proxy
 
     # Server Configuration
     MCP_SERVER_HOST: str = os.getenv("MCP_SERVER_HOST", "localhost")
@@ -87,6 +66,3 @@ class Config:
             raise ValueError(
                 "ANTHROPIC_API_KEY is required when using Anthropic provider"
             )
-
-        if not cls.JWT_SECRET_KEY or cls.JWT_SECRET_KEY == "change-this-secret-key":
-            raise ValueError("JWT_SECRET_KEY must be set to a secure value")
