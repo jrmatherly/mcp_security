@@ -6,25 +6,27 @@ This project contains working examples for building secure HTTP-based AI integra
 
 Learn how to secure your MCP integrations with enterprise-grade security:
 
-- Implement OAuth 2.1 with PKCE authentication
-- Configure TLS encryption and security headers
-- Add comprehensive input validation and sanitization
-- Implement rate limiting and DDoS protection
-- Monitor security events and handle incidents
-- Connect clients securely to protected MCP servers
+- **Azure OAuth Proxy**: FastMCP OAuth Proxy with Azure Entra ID authentication
+- **Enterprise Integration**: Direct Azure OAuth 2.1 integration with JWKS validation  
+- **TLS Encryption**: End-to-end security with configurable certificate management
+- **Input Validation**: Comprehensive sanitization and injection prevention
+- **Rate Limiting**: Multi-tier protection for requests and AI token usage
+- **Security Monitoring**: Real-time threat detection and incident response
+- **Multi-Platform Clients**: Secure connections from OpenAI, Anthropic, LangChain, DSPy, and LiteLLM
 
 ## Quick Start
 
-**For Development (no TLS)**:
+**For Development (Azure OAuth Proxy)**:
 ```bash
-task setup && task generate-keys
-task run-oauth    # Terminal 1
-task run-server   # Terminal 2
+task setup
+# Configure Azure credentials in .env
+task run-server   # Single service with OAuth Proxy
 ```
 
 **For Production (with TLS)**:
 ```bash
-task setup && task generate-keys && task generate-certs
+task setup && task generate-certs
+# Configure Azure credentials in .env
 task docker-up
 ```
 
@@ -34,6 +36,7 @@ task docker-up
 - Python 3.12.11 (managed via pyenv)
 - Poetry for dependency management
 - Go Task for build automation
+- **Azure App Registration** with configured OAuth credentials
 - API key for OpenAI or Anthropic (Claude) OR Ollama installed locally
 - Redis server for rate limiting (optional)
 
@@ -53,17 +56,17 @@ task docker-up
     cp .env.example .env
     ```
     
-3. Edit `.env` to configure security and LLM provider:
-    - Set your OAuth configuration
-    - Add your API keys
+3. Edit `.env` to configure Azure and LLM provider:
+    - **Set Azure credentials**: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
+    - Add your API keys (OpenAI/Anthropic)
     - Configure Redis URL if using distributed rate limiting
     - Set TLS certificate paths
 4. Run the setup tasks:
     
     ```bash
-    task setup           # Install Python dependencies
-    task generate-keys   # Generate RSA keys for JWT
+    task setup           # Install Python dependencies  
     task generate-certs  # Generate self-signed certificates
+    # Note: generate-keys deprecated - OAuth Proxy uses Azure JWKS
     ```
 
 ### Docker Setup (Production)
@@ -76,17 +79,17 @@ task docker-up
     ```
     
 3. Edit `.env` to configure your production environment:
+    - **Set Azure credentials**: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
     - Set your API keys (OPENAI_API_KEY, ANTHROPIC_API_KEY)
     - Configure custom OpenAI endpoint (OPENAI_BASE_URL) if needed
-    - Configure JWT secrets and OAuth credentials
     - Set Redis password and other production settings
 4. Run the Docker setup:
     
     ```bash
-    task generate-keys   # Generate RSA keys for JWT
     task generate-certs  # Generate self-signed certificates
     task docker-build    # Build Docker images
     task docker-up       # Start all services with TLS
+    # Note: generate-keys deprecated - OAuth Proxy uses Azure JWKS
     ```
 
 ## Technology Stack
@@ -100,10 +103,11 @@ task docker-up
 - **uvicorn**: 0.35.0 (Latest ASGI server with WebSocketsSansIOProtocol support)
 - **FastAPI**: 0.115.13+ (High-performance web framework)
 
-### Security & Authentication
-- **Authentication**: JWTVerifier (migrated from deprecated BearerAuthProvider)
-- **OAuth**: 2.1 with PKCE flow
-- **Encryption**: RS256 JWT signatures, TLS 1.3
+### Security & Authentication  
+- **Authentication**: OAuth Proxy with Azure Entra ID integration
+- **OAuth**: 2.1 flow via FastMCP OAuth Proxy (Azure non-DCR provider)
+- **Token Validation**: Azure JWKS endpoint with RS256 JWT signatures
+- **Encryption**: TLS 1.3, Azure-managed token signing
 - **Input Validation**: Pydantic 2.11.5+ with custom security validators
 - **Rate Limiting**: Redis-based with configurable thresholds
 
@@ -173,9 +177,9 @@ task docker-up
 ├── src/
 │   ├── __init__.py
 │   ├── config.py                    # Security and LLM configuration
-│   ├── main.py                      # Secure MCP server implementation
+│   ├── main.py                      # Secure MCP server with OAuth Proxy
 │   ├── secure_server.py             # Production-ready secure server
-│   ├── oauth_server.py              # OAuth 2.1 authorization server
+│   ├── oauth_server.py.deprecated   # [DEPRECATED] Local OAuth server
 │   ├── secure_clients/
 │   │   ├── __init__.py
 │   │   ├── openai_client.py         # ✅ Secure OpenAI GPT-4 client
@@ -216,37 +220,38 @@ task docker-up
 
 | Feature | Development Mode | Docker Mode (Production) |
 |---------|------------------|-------------------------|
-| OAuth URL | http://localhost:8080 | https://localhost:8443 |
+| Authentication | Azure OAuth Proxy | Azure OAuth Proxy |
 | MCP URL | http://localhost:8000 | https://localhost:8001 |
 | TLS/HTTPS | ❌ No | ✅ Yes (via nginx) |
 | Redis | Local install | Docker container |
-| Complexity | Simple | Production-ready |
+| Architecture | Single service | Production-ready |
 | Use Case | Development/Testing | Production/Demo |
 
 ### Option 1: Development Mode (Without Docker/nginx)
 
-This mode runs services directly with Python, using HTTP without TLS.
+This mode runs the MCP server directly with Python and Azure OAuth Proxy, using HTTP without TLS.
 
 #### Environment Variables (.env)
 ```bash
-# Key differences for development mode:
-OAUTH_TOKEN_URL=http://localhost:8080/token
+# Key variables for development mode:
+# Azure OAuth Proxy Configuration
+AZURE_TENANT_ID=your-azure-tenant-id
+AZURE_CLIENT_ID=your-azure-client-id
+AZURE_CLIENT_SECRET=your-azure-client-secret
+
+# Server Configuration
 MCP_SERVER_URL=http://localhost:8000/mcp
-OAUTH_SERVER_HOST=localhost
-OAUTH_ISSUER_URL=http://localhost:8080
 MCP_SERVER_HOST=localhost
+MCP_SERVER_PORT=8000
 REDIS_URL=redis://localhost:6379
 ```
 
 #### Running with Tasks
 ```bash
-# Terminal 1: Start OAuth server
-task run-oauth           # Runs on http://localhost:8080
+# Terminal 1: Start MCP server with OAuth Proxy
+task run-server          # Runs on http://localhost:8000 with Azure OAuth Proxy
 
-# Terminal 2: Start MCP server
-task run-server          # Runs on stdio (FastMCP 2.8+)
-
-# Terminal 3: Run AI clients
+# Terminal 2: Run AI clients
 task run-openai-client     # OpenAI GPT-4 client
 task run-anthropic-client  # Anthropic Claude client
 task run-langchain-client  # LangChain ReAct agent client
@@ -256,13 +261,10 @@ task run-litellm-client    # LiteLLM multi-provider client
 
 #### Running without Tasks
 ```bash
-# Terminal 1: OAuth server
-poetry run python src/oauth_server.py
-
-# Terminal 2: MCP server
+# Terminal 1: MCP server with OAuth Proxy
 poetry run python src/main.py
 
-# Terminal 3: AI clients
+# Terminal 2: AI clients
 poetry run python src/secure_clients/openai_client.py     # OpenAI
 poetry run python src/secure_clients/anthropic_client.py  # Anthropic
 poetry run python src/secure_clients/langchain_client.py  # LangChain
@@ -272,8 +274,8 @@ poetry run python src/secure_clients/litellm_client.py    # LiteLLM
 
 #### Testing
 ```bash
-# Test OAuth server
-curl http://localhost:8080/
+# Test MCP server with OAuth Proxy
+curl http://localhost:8000/health
 
 # Test with AI clients
 task run-openai-client     # Test OpenAI integration
@@ -293,18 +295,22 @@ This mode runs all services in Docker containers with nginx providing TLS termin
 #### Environment Variables (.env)
 ```bash
 # Key differences for Docker mode:
-OAUTH_TOKEN_URL=https://localhost:8443/token
+# Azure OAuth Proxy Configuration (same as development)
+AZURE_TENANT_ID=your-azure-tenant-id
+AZURE_CLIENT_ID=your-azure-client-id
+AZURE_CLIENT_SECRET=your-azure-client-secret
+
+# Docker Server Configuration
 MCP_SERVER_URL=https://localhost:8001/mcp
-OAUTH_SERVER_HOST=0.0.0.0
-OAUTH_ISSUER_URL=https://localhost:8443
 MCP_SERVER_HOST=0.0.0.0
+MCP_SERVER_PORT=8000
 REDIS_URL=redis://redis:6379
 TLS_CA_CERT_PATH=  # Empty to skip cert verification for self-signed
 ```
 
 #### Running with Tasks
 ```bash
-# Start all services (nginx, OAuth, MCP, Redis)
+# Start all services (nginx, MCP with OAuth Proxy, Redis)
 task docker-up
 
 # View logs
@@ -331,13 +337,11 @@ docker-compose up -d
 docker-compose logs -f
 
 # Run AI clients with Docker URLs
-OAUTH_TOKEN_URL=https://localhost:8443/token \
 MCP_SERVER_URL=https://localhost:8001/mcp \
 TLS_CA_CERT_PATH= \
 poetry run python src/secure_clients/openai_client.py
 
 # Or Anthropic client
-OAUTH_TOKEN_URL=https://localhost:8443/token \
 MCP_SERVER_URL=https://localhost:8001/mcp \
 TLS_CA_CERT_PATH= \
 poetry run python src/secure_clients/anthropic_client.py
@@ -348,41 +352,38 @@ docker-compose down
 
 #### Testing
 ```bash
-# Test OAuth server (via nginx HTTPS)
-curl -k https://localhost:8443/
+# Test MCP server with OAuth Proxy (via nginx HTTPS)
+curl -k https://localhost:8001/health
 
 # Test direct container access (from host)
-curl http://localhost:8080/  # Direct to OAuth container
+curl http://localhost:8000/health  # Direct to MCP container
 
 # Debug containers
-task docker-shell-oauth
 task docker-shell-mcp
 ```
 
 #### Service URLs
-- **OAuth Server**: https://localhost:8443 (TLS via nginx)
-- **MCP Server**: https://localhost:8001 (TLS via nginx)
-- **Direct OAuth**: http://localhost:8080 (container port, not for external use)
+- **MCP Server with OAuth Proxy**: https://localhost:8001 (TLS via nginx)
 - **Direct MCP**: http://localhost:8000 (container port, not for external use)
 
 ## Available Tasks
 
 ### Core Tasks
 - `task setup` - Set up Python environment and install dependencies
-- `task generate-keys` - Generate RSA key pair for OAuth JWT signing
+- `task generate-keys` - [DEPRECATED] Generate RSA key pair (not needed with OAuth Proxy)
 - `task generate-certs` - Generate self-signed certificates
 - `task test` - Run all pytest tests
 - `task format` - Format code with Black and Ruff
 - `task clean` - Clean up generated files
 
 ### Development Mode Tasks
-- `task run-server` - Run MCP server (stdio transport)
-- `task run-oauth` - Run OAuth server on port 8080
-- `task run-openai-client` - Run OpenAI client (for local services)
-- `task run-anthropic-client` - Run Anthropic Claude client (for local services)
-- `task run-langchain-client` - Run LangChain ReAct agent client (for local services)
-- `task run-dspy-client` - Run DSPy ReAct agent client (for local services)
-- `task run-litellm-client` - Run LiteLLM multi-provider client (for local services)
+- `task run-server` - Run MCP server with Azure OAuth Proxy (HTTP transport)
+- `task run-oauth` - [DEPRECATED] Run OAuth server (replaced by Azure OAuth Proxy)
+- `task run-openai-client` - Run OpenAI client (connects to OAuth Proxy)
+- `task run-anthropic-client` - Run Anthropic Claude client (connects to OAuth Proxy)
+- `task run-langchain-client` - Run LangChain ReAct agent client (connects to OAuth Proxy)
+- `task run-dspy-client` - Run DSPy ReAct agent client (connects to OAuth Proxy)
+- `task run-litellm-client` - Run LiteLLM multi-provider client (connects to OAuth Proxy)
 
 ### Docker Mode Tasks
 - `task docker-build` - Build Docker images
@@ -391,7 +392,6 @@ task docker-shell-mcp
 - `task docker-logs` - View service logs
 - `task docker-restart` - Restart services
 - `task docker-clean` - Clean up containers and volumes
-- `task docker-shell-oauth` - Debug OAuth container
 - `task docker-shell-mcp` - Debug MCP container
 
 ## Security Checklist
@@ -399,11 +399,11 @@ task docker-shell-mcp
 Before deploying to production, ensure:
 
 **Authentication & Authorization**
-- ✅ OAuth 2.1 with PKCE implemented
-- ✅ JWT tokens use RS256 with JWKS endpoint
-- ✅ JWT signature verification in all clients
-- ✅ Token expiration set to 15-60 minutes
-- ✅ Scopes properly defined and enforced
+- ✅ Azure OAuth Proxy with Entra ID integration
+- ✅ JWT tokens use RS256 with Azure JWKS endpoint validation
+- ✅ FastMCP OAuth Proxy handles token management
+- ✅ Azure-managed token expiration and refresh
+- ✅ Graph API scopes properly configured
 
 **Transport Security**
 - ✅ TLS 1.2 minimum, TLS 1.3 preferred (via nginx)
@@ -437,10 +437,10 @@ The examples demonstrate:
 ## Troubleshooting
 
 ### Development Mode Issues
-- **OAuth token errors**: Check your OAuth server configuration and client credentials
+- **Azure authentication errors**: Check Azure credentials in .env (AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET)
 - **Import errors**: Run `task setup` to install dependencies
-- **Key errors**: Run `task generate-keys` to create RSA key pairs
 - **Certificate errors**: Run `task generate-certs` to create self-signed certificates
+- **OAuth Proxy errors**: Verify Azure App Registration configuration and redirect URIs
 
 ### Docker Mode Issues
 - **TLS certificate errors**: Ensure certificates are valid and properly configured
@@ -454,13 +454,15 @@ The examples demonstrate:
 - **Rate limit issues**: Check Redis connection and rate limit configuration
 - **API key errors**: Verify your OpenAI/Anthropic API keys in .env file
 - **Network issues**: Check Docker network configuration and container connectivity
+- **Azure authentication failures**: Verify App Registration permissions and admin consent granted
 
 ### Switching Between Modes
 When switching between development and Docker modes:
-1. **Update .env file**: Change the URLs as shown in the comparison table
+1. **Update .env file**: Ensure Azure credentials are configured
 2. **Stop all services**: Ensure no port conflicts
 3. **For Docker → Development**: Stop Docker (`task docker-down`) before starting local services
 4. **For Development → Docker**: Stop local services (Ctrl+C) before starting Docker
+5. **Azure Configuration**: Same Azure credentials work for both modes
 
 ## Learn More
 

@@ -389,7 +389,9 @@ async def main():
                 await test_client.get(f"{mcp_base_url}/health")
                 print("✅ MCP server with OAuth Proxy is running")
         except Exception as e:
-            print(f"❌ MCP server is not accessible at {oauth_config['mcp_server_url']}")
+            print(
+                f"❌ MCP server is not accessible at {oauth_config['mcp_server_url']}"
+            )
             print("   Please start the MCP server with: task run-server")
             print("   Make sure Azure credentials are configured in .env")
             print(f"   Error: {str(e)}")
