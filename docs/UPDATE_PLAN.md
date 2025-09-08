@@ -290,6 +290,6 @@ You are an expert in Python, Bash, YAML and Markdown editing. Ensure the followi
     - If end-of-line comments exceed the width limit, move them to the line before the code block, or break them into multiple lines.
     - If docstrings or comments are too long, break them into multiple lines while maintaining readability and coherence. **Do not truncate or lose any part of the original meaning of the comment.**
     - COMMENTS MUST BE FIXED SUCH THAT NO LINE IS GREATER THAN 60 CHARACTERS!
-5. NO CODE LISTING OF ANY KIND IS ALLOWED TO HAVE A LINE OVER 60 characters.
+4. NO CODE LISTING OF ANY KIND IS ALLOWED TO HAVE A LINE OVER 60 characters.
 
 Format and edit the code listings according to these guidelines.

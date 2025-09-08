@@ -22,6 +22,10 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# =============================================================================
+# Environment & Configuration
+# =============================================================================
+
 # Virtual environments
 .env
 .venv
@@ -61,9 +65,14 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# IDE
+# =============================================================================
+# Development Environment Files
+# =============================================================================
+
+# IDE and editor configurations
 .idea/
 .vscode/
+.serena/
 *.swp
 *.swo
 *~
@@ -72,6 +81,10 @@ cython_debug/
 .settings/
 *.sublime-project
 *.sublime-workspace
+
+# =============================================================================
+# Operating System Files
+# =============================================================================
 
 # macOS
 .DS_Store

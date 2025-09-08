@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for MCP security demo
-FROM python:3.12.9-slim as base
+FROM python:3.12.11-slim as base
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \

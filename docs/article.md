@@ -1104,7 +1104,7 @@ Stay informed by following security advisories from the MCP community, participa
 
 Remember, the goal isn't to build an impenetrable fortress (that's impossible) but to make your MCP server a harder target than the alternatives. By implementing the security measures outlined in this guide, you're already ahead of 90% of deployments.
 
-## Server wrap up.
+## Server wrap up
 
 We've transformed your MCP server from an open door to a secure vault, implementing industry-standard security practices tailored for AI integrations. By combining OAuth 2.1 authentication, TLS encryption, comprehensive input validation, and intelligent rate limiting, you've built a foundation that can withstand the threats of production deployment.
 

@@ -9,8 +9,8 @@ tasks:
   setup:
     desc: "Set up the Python environment"
     cmds:
-      - pyenv install -s 3.12.9
-      - pyenv local 3.12.9
+      - pyenv install -s 3.12.11
+      - pyenv local 3.12.11
       - poetry install
       - poetry config virtualenvs.in-project true
 

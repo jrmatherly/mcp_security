@@ -31,7 +31,7 @@ task docker-up
 ## Prerequisites
 
 ### Development Setup
-- Python 3.12.9 (managed via pyenv)
+- Python 3.12.11 (managed via pyenv)
 - Poetry for dependency management
 - Go Task for build automation
 - API key for OpenAI or Anthropic (Claude) OR Ollama installed locally
@@ -69,10 +69,10 @@ task docker-up
 ### Docker Setup (Production)
 
 1. Clone this repository
-2. Copy `.env.example.tls` to `.env` and configure for Docker:
+2. Copy `.env.example` to `.env` and configure for Docker:
     
     ```bash
-    cp .env.example.tls .env
+    cp .env.example .env
     ```
     
 3. Edit `.env` to configure your production environment:
