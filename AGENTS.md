@@ -13,16 +13,15 @@ This file provides guidance to AI coding assistants working in this repository.
 
 ### Essential Setup Commands
 ```bash
-task setup              # Install Python dependencies with Poetry  
-task generate-keys      # Generate RSA keys for JWT signing
+task setup              # Install Python dependencies with Poetry
 task generate-certs     # Generate self-signed certificates for HTTPS
+# Note: generate-keys deprecated - OAuth Proxy uses Azure JWKS
 ```
 
 ### Development Mode Commands
 ```bash
-# Start servers (run in separate terminals)
-task run-oauth          # Start OAuth 2.1 server on http://localhost:8080
-task run-server         # Start MCP server (stdio transport)
+# Configure Azure credentials in .env first
+task run-server         # Start MCP server with Azure OAuth Proxy (HTTP transport)
 
 # Test AI client integrations
 task run-openai-client     # Test secure OpenAI GPT-4 integration
@@ -42,7 +41,6 @@ task docker-restart     # Restart services
 task docker-clean       # Clean up containers and volumes
 
 # Debugging containers
-task docker-shell-oauth # Debug OAuth container
 task docker-shell-mcp   # Debug MCP container
 ```
 
@@ -170,9 +168,10 @@ Key principles:
 This project demonstrates enterprise-grade security patterns. **Never compromise security for convenience**.
 
 ### Authentication & Authorization
-- **OAuth 2.1 with PKCE** - Modern authentication with proof key for code exchange
-- **JWT Token Validation** - RS256 signatures with JWKS endpoint verification
-- **Scope-based Authorization** - Granular permissions for API access
+- **Azure OAuth Proxy** - FastMCP OAuth Proxy with Azure Entra ID integration
+- **Enterprise Authentication** - Direct Azure OAuth 2.1 with JWKS validation
+- **JWT Token Validation** - RS256 signatures via Azure JWKS endpoint
+- **Scope-based Authorization** - Microsoft Graph API scopes
 
 ### Data Protection & Validation
 - **Input Validation** - Pydantic models with dangerous pattern blocking
