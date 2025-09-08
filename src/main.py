@@ -11,6 +11,7 @@ from typing import Any, Dict
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
+from fastmcp.server.auth import OAuthProxy
 from fastmcp.server.auth.providers.jwt import JWTVerifier
 from fastmcp.server.dependencies import AccessToken, get_access_token
 
@@ -30,35 +31,48 @@ rate_limiter = RateLimiter()
 security_logger = SecurityLogger()
 
 
-def load_public_key():
-    """Load RSA public key for JWT verification."""
-    from pathlib import Path
+def create_oauth_proxy_auth():
+    """Create OAuth Proxy for Azure authentication."""
+    # Get Azure configuration from environment
+    tenant_id = os.environ.get("AZURE_TENANT_ID")
+    client_id = os.environ.get("AZURE_CLIENT_ID")
+    client_secret = os.environ.get("AZURE_CLIENT_SECRET")
 
-    public_key_path = Path("keys/public_key.pem")
-
-    if not public_key_path.exists():
-        raise FileNotFoundError(
-            "Public key not found. Run 'python src/generate_keys.py' or 'task generate-keys' first."
+    if not all([tenant_id, client_id, client_secret]):
+        raise ValueError(
+            "Missing Azure configuration. Please set AZURE_TENANT_ID, AZURE_CLIENT_ID, and AZURE_CLIENT_SECRET"
         )
 
-    with open(public_key_path, "rb") as f:
-        public_key_pem = f.read()
-
-    # Convert to PEM string format that JWTVerifier expects
-    return public_key_pem.decode("utf-8")
-
-
-# Create JWT verifier for FastMCP with RSA public key
-try:
-    public_key_pem = load_public_key()
-    auth_provider = JWTVerifier(
-        public_key=public_key_pem,
-        issuer=Config.get_oauth_issuer_url(),  # Use config for OAuth issuer URL
-        audience=None,  # Allow any client_id
+    # JWT verifier for Azure tokens
+    token_verifier = JWTVerifier(
+        jwks_uri=f"https://login.microsoftonline.com/{tenant_id}/discovery/v2.0/keys",
+        issuer=f"https://login.microsoftonline.com/{tenant_id}/v2.0",
+        audience=client_id,
     )
-except FileNotFoundError as e:
+
+    # OAuth Proxy for Azure (non-DCR provider)
+    return OAuthProxy(
+        upstream_authorization_endpoint=f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize",
+        upstream_token_endpoint=f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token",
+        upstream_client_id=client_id,
+        upstream_client_secret=client_secret,
+        token_verifier=token_verifier,
+        base_url="http://localhost:8000",
+    )
+
+
+# Create OAuth Proxy for Azure authentication
+try:
+    auth_provider = create_oauth_proxy_auth()
+    logger.info("✅ OAuth Proxy configured for Azure Entra ID")
+except ValueError as e:
     logger.warning(f"⚠️  {e}")
-    logger.warning("⚠️  Running without authentication - generate keys first!")
+    logger.warning(
+        "⚠️  Running without authentication - configure Azure credentials first!"
+    )
+    auth_provider = None
+except Exception as e:
+    logger.error(f"❌ Failed to configure OAuth Proxy: {e}")
     auth_provider = None
 
 
@@ -88,12 +102,12 @@ mcp = FastMCP(
 
 
 def _get_required_scopes(tool_name: str) -> list[str]:
-    """Map tool names to required OAuth scopes - same as clients."""
+    """Map tool names to required OAuth scopes - Azure Graph API format."""
     scope_mapping = {
-        "get_customer_info": ["customer:read"],
-        "create_support_ticket": ["ticket:create"],
-        "calculate_account_value": ["account:calculate"],
-        "get_recent_customers": ["customer:read"],
+        "get_customer_info": ["https://graph.microsoft.com/.default"],
+        "create_support_ticket": ["https://graph.microsoft.com/.default"],
+        "calculate_account_value": ["https://graph.microsoft.com/.default"],
+        "get_recent_customers": ["https://graph.microsoft.com/.default"],
     }
     return scope_mapping.get(tool_name, [])
 
@@ -271,12 +285,23 @@ async def health_check() -> Dict[str, Any]:
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "version": "1.0.0",
+        "authentication": "azure_oauth_proxy",
         "features": [
-            "oauth_auth",
+            "azure_oauth_proxy",
             "input_validation",
             "security_logging",
             "rate_limiting",
         ],
+    }
+
+
+# Add HTTP health endpoint for client checking
+async def http_health() -> Dict[str, Any]:
+    """HTTP health endpoint for client connectivity checks."""
+    return {
+        "status": "healthy",
+        "authentication": "azure_oauth_proxy",
+        "timestamp": datetime.now().isoformat(),
     }
 
 

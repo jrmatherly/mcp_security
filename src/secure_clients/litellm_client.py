@@ -41,6 +41,7 @@ class LiteLLMMCPClient:
         # Configure LiteLLM for custom OpenAI endpoints
         if Config.LLM_PROVIDER == "openai":
             if Config.OPENAI_BASE_URL:
+                # LiteLLM expects OPENAI_API_BASE, but we standardize on OPENAI_BASE_URL
                 os.environ["OPENAI_API_BASE"] = Config.OPENAI_BASE_URL
                 print(
                     f"🔧 LiteLLM configured for custom OpenAI endpoint: {Config.OPENAI_BASE_URL}"

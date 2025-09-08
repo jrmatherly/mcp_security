@@ -121,9 +121,8 @@ class SecureOpenAIMCPClient:
             return None
 
     async def connect_to_secure_mcp_server(self):
-        """Connect to OAuth-protected MCP server."""
-        # Get fresh access token
-        access_token = await self.get_oauth_token()
+        """Connect to FastMCP OAuth Proxy server."""
+        # OAuth Proxy handles authentication - no manual token needed
 
         # Create custom httpx client factory with our CA bundle
         def custom_httpx_client_factory(headers=None, timeout=None, auth=None):
@@ -141,11 +140,10 @@ class SecureOpenAIMCPClient:
                 follow_redirects=True,
             )
 
-        # Create HTTP client with authentication headers and custom SSL verification
+        # Connect to FastMCP OAuth Proxy - no manual headers needed
         http_transport = await self.exit_stack.enter_async_context(
             streamablehttp_client(
                 url=self.oauth_config["mcp_server_url"],
-                headers={"Authorization": f"Bearer {access_token}"},
                 httpx_client_factory=custom_httpx_client_factory,
             )
         )
@@ -153,7 +151,7 @@ class SecureOpenAIMCPClient:
         read, write, _ = http_transport
         session = await self.exit_stack.enter_async_context(ClientSession(read, write))
 
-        # Initialize with auth headers
+        # Initialize - OAuth Proxy handles authentication
         await session.initialize()
 
         self.sessions.append(session)
@@ -186,14 +184,10 @@ class SecureOpenAIMCPClient:
         return scope_mapping.get(tool_name, [])
 
     async def call_mcp_tool(self, tool_call, tool_name):
-        # Verify we have required scopes for this tool
-        required_scopes = self._get_required_scopes(tool_name)
-        if not await self._verify_token_scopes(required_scopes):
-            raise PermissionError(f"Insufficient permissions for {tool_name}")
+        # OAuth Proxy handles all authentication and authorization
         # Get session for tool
         session = self.tool_to_session[tool_name]
-        # Note: With HTTP transport, auth is handled via headers during connection
-        # Call the tool
+        # Call the tool - FastMCP OAuth Proxy validates permissions
         tool_args = json.loads(tool_call.function.arguments)
         result = await session.call_tool(tool_name, arguments=tool_args)
         return result
@@ -354,16 +348,12 @@ async def main():
     print("🤖 Secure OpenAI MCP Client Demo")
     print("=" * 50)
 
-    # Load configuration from environment variables
+    # OAuth Proxy configuration - authentication handled by FastMCP
     oauth_config = {
-        "token_url": os.environ.get("OAUTH_TOKEN_URL", "http://localhost:8080/token"),
-        "client_id": os.environ.get("OAUTH_CLIENT_ID", "openai-mcp-client"),
-        "client_secret": os.environ.get("OAUTH_CLIENT_SECRET", "openai-client-secret"),
-        "scopes": "customer:read ticket:create account:calculate",
         "mcp_server_url": os.environ.get("MCP_SERVER_URL", "http://localhost:8000/mcp"),
-        "ca_cert_path": os.environ.get(
-            "TLS_CA_CERT_PATH", None
-        ),  # For demo, disable TLS verification
+        "scopes": "https://graph.microsoft.com/.default",  # Azure Graph API scopes
+        "ca_cert_path": os.environ.get("TLS_CA_CERT_PATH", None),
+        # OAuth Proxy handles token management, no direct token URL needed
     }
 
     # Check for OpenAI API key (from environment or .env file)
@@ -389,23 +379,19 @@ async def main():
     )
 
     try:
-        # First, check if OAuth server is running
-        print("🔍 Checking OAuth server...")
-        oauth_url = oauth_config["token_url"].replace("/token", "")
+        # Check if MCP server (with OAuth Proxy) is running
+        print("🔍 Checking MCP server with OAuth Proxy...")
 
         try:
-            # Use the same CA verification logic as the main client
+            # Check MCP server health endpoint
+            mcp_base_url = oauth_config["mcp_server_url"].replace("/mcp", "")
             async with httpx.AsyncClient(verify=False, timeout=2) as test_client:
-                await test_client.get(oauth_url)
-                print(f"✅ OAuth server is running at {oauth_url}")
+                await test_client.get(f"{mcp_base_url}/health")
+                print("✅ MCP server with OAuth Proxy is running")
         except Exception as e:
-            print(f"❌ OAuth server is not accessible at {oauth_url}")
-            if oauth_url.startswith("https://"):
-                print("   If using Docker, ensure:")
-                print("   1. Docker services are running: task docker-up")
-                print("   2. Using correct .env file with HTTPS URLs")
-            else:
-                print("   Please start it first with: task run-oauth")
+            print(f"❌ MCP server is not accessible at {oauth_config['mcp_server_url']}")
+            print("   Please start the MCP server with: task run-server")
+            print("   Make sure Azure credentials are configured in .env")
             print(f"   Error: {str(e)}")
             return
 
@@ -433,11 +419,9 @@ async def main():
 
     except Exception as e:
         print(f"❌ Connection failed: {e}")
-        print("\n📋 Make sure both servers are running:")
-        print("   1. Start OAuth server: task run-oauth")
-        print(
-            "   2. Start MCP server in HTTP mode: LLM_PROVIDER=openai task run-server"
-        )
+        print("\n📋 Make sure MCP server is running:")
+        print("   1. Configure Azure credentials in .env file")
+        print("   2. Start MCP server: LLM_PROVIDER=openai task run-server")
         print("   3. Then run this client: task run-openai-client")
 
     finally:

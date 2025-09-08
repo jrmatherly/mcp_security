@@ -19,9 +19,9 @@ tasks:
       - echo "✅ Setup complete! Virtual environment ready at .venv/"
 
   generate-keys:
-    desc: "Generate RSA key pair for OAuth JWT signing"
+    desc: "[DEPRECATED] Generate RSA key pair for OAuth JWT signing (not needed with OAuth Proxy)"
     cmds:
-      - poetry run python src/generate_keys.py
+      - echo "⚠️  DEPRECATED - RSA keys not needed with Azure OAuth Proxy. Configure AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET in .env instead"
 
   run-server:
     desc: "Run the secure MCP server"
@@ -31,9 +31,9 @@ tasks:
       LLM_PROVIDER: "{{.LLM_PROVIDER | default \"ollama\"}}"
 
   run-oauth:
-    desc: "Run the OAuth authorization server"
+    desc: "[DEPRECATED] Run the OAuth authorization server (replaced by Azure OAuth Proxy)"
     cmds:
-      - poetry run python src/oauth_server.py
+      - echo "⚠️  DEPRECATED - Local OAuth server replaced by Azure OAuth Proxy. Use 'task run-server' instead"
 
   run-openai-client:
     desc: "Run the secure OpenAI client demo"
@@ -120,7 +120,7 @@ tasks:
 
   docker-up:
     desc: "Start all services with Docker Compose (with TLS)"
-    deps: [generate-keys, generate-certs]
+    deps: [generate-certs]
     cmds:
       - docker-compose up -d
 
